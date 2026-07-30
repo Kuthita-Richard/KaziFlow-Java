@@ -1,0 +1,13 @@
+target/
+*.class
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+network.properties

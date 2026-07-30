@@ -1,0 +1,64 @@
+KaziFlow ERP — Build Info
+==========================
+
+Build: Debug Pass 1 — Dead code, incomplete UI, stale text
+Date: 2026-06-22
+Java files (main): 119
+Java files (test): 11
+LOC (main): 26,088
+Tests: 121
+
+FIXES IN THIS BUILD:
+
+1. LoginView.java
+   - Dead "Sign in with Google" button now shows an informative toast
+     ("Google Sign-In not yet available") instead of doing nothing
+   - "Contact Support" label now opens mailto:support@kaziflow.co.ke
+     (was clickable-looking but had zero click handler)
+   - Hardcoded "© 2025" copyright now computed dynamically via
+     java.time.Year.now() — will never go stale again
+
+2. Dead Export buttons (8 total) — all wired to ReportExportService.exportCSV()
+   - SalesView.java     → ReportType.SALES
+   - InventoryView.java → ReportType.INVENTORY
+   - EmployeesView.java → ReportType.EMPLOYEES
+   - PurchasesView.java → ReportType.PURCHASES
+   - FinanceView.java   → ReportType.EXPENSES (expense filter bar)
+   - FinanceView.java   → ReportType.FINANCE_SUMMARY (VAT report)
+   - ExpenseView.java   → ReportType.EXPENSES
+   - SalesHistoryView.java → ReportType.SALES
+
+3. Dead navigation buttons (3 total)
+   - DashboardView.java: "Add Purchase" button → navigateTo("purchases")
+   - InventoryView.java: "Add Sale" → navigateTo("sales")
+   - InventoryView.java: "Add Purchase" → navigateTo("purchases")
+
+4. Dead action buttons (3 total)
+   - SettingsView.java: "View Guide" → opens docs.kaziflow.co.ke
+   - ReportsView.java:  "Schedule Report" → informative toast
+     ("coming in a future update")
+   - UserManagementView.java: "Manage Roles & Permissions" → navigateTo("settings")
+
+5. SettingsView.java — 3 placeholder cards now fully implemented:
+   - "Roles & Perms" → dialog showing roles table from DB
+   - "Tax Settings"  → dialog with VAT rate + KRA PIN fields,
+     saves to settings table with INSERT OR REPLACE
+   - "Audit Trail"   → dialog with searchable/filterable table of
+     recent 500 audit log entries
+
+6. Empty/comment-only catch blocks — audited all 70+:
+   - Confirmed all are appropriate JavaFX/SQLite graceful-degradation
+     patterns (returning empty list/false on DB error) or intentional
+     shutdown-path swallows
+   - No actionable silent failures found
+
+AUDIT FINDINGS NOT REQUIRING CODE CHANGES:
+   - "localhost" references: all are sandbox toggle UI controls, not
+     production URLs
+   - Hardcoded secrets: LicenseService SIGNING_SECRET is documented
+     as a placeholder (see Phase 7 hardening checklist)
+   - Factory-method buttons (btn, b): false positives — these are
+     returned to callers which wire handlers externally
+
+ALL PREVIOUS FIXES RETAINED:
+  BuildFixLog_001, Phase 5A/5B/5C, Phase 6A/6B/6C/6D, Phase 7

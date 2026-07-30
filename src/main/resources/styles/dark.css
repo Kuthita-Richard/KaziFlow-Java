@@ -1,0 +1,220 @@
+/* ════════════════════════════════════════════════════════════
+   KaziFlow ERP – Dark Mode Stylesheet
+   Overrides the CSS variables defined in main.css.
+   Applied as a second stylesheet on top of main.css.
+   ════════════════════════════════════════════════════════════ */
+
+/* ─── Root Variable Overrides ─────────────────────────────── */
+.root {
+    -kf-white:      #1e2535;
+    -kf-gray-50:    #161b27;
+    -kf-gray-100:   #1e2535;
+    -kf-gray-200:   #2d3748;
+    -kf-gray-400:   #8892a4;
+    -kf-gray-600:   #a0aec0;
+    -kf-gray-800:   #e2e8f0;
+    -kf-navy:       #0f1420;
+    -kf-navy-mid:   #161d2e;
+    -kf-navy-light: #1a2236;
+    -kf-blue-light: #1a2a4a;
+    -fx-base:        #1e2535;
+    -fx-background:  #161b27;
+    -fx-control-inner-background: #1e2535;
+    -fx-text-fill:   #e2e8f0;
+    -fx-color:       #1e2535;
+}
+
+/* ─── Login ───────────────────────────────────────────────── */
+.login-root    { -fx-background-color: #161b27; }
+.login-right   { -fx-background-color: #1e2535; }
+.login-title   { -fx-text-fill: #e2e8f0; }
+.login-label   { -fx-text-fill: #e2e8f0; }
+.login-field   {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+    -fx-prompt-text-fill: #8892a4;
+}
+.login-hint    { -fx-text-fill: #8892a4; }
+
+/* ─── Main Layout ─────────────────────────────────────────── */
+.main-root     { -fx-background-color: #161b27; }
+.content-area  { -fx-background-color: #161b27; }
+.sidebar       { -fx-background-color: #0f1420; }
+.sidebar-logo-box { -fx-background-color: #161d2e; }
+.topbar        {
+    -fx-background-color: #1e2535;
+    -fx-border-color: transparent transparent #2d3748 transparent;
+}
+.page-title    { -fx-text-fill: #e2e8f0; }
+
+/* ─── Cards ───────────────────────────────────────────────── */
+.stat-card, .card {
+    -fx-background-color: #1e2535;
+    -fx-border-color: #2d3748;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);
+}
+.stat-value    { -fx-text-fill: #e2e8f0; }
+.card-title    { -fx-text-fill: #e2e8f0; }
+.card-subtitle { -fx-text-fill: #8892a4; }
+.stat-label    { -fx-text-fill: #8892a4; }
+
+/* ─── Tables ──────────────────────────────────────────────── */
+.table-view {
+    -fx-background-color: #1e2535;
+    -fx-table-cell-border-color: #2d3748;
+}
+.table-view .column-header-background { -fx-background-color: #161b27; }
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #2d3748 transparent;
+}
+.table-view .column-header .label { -fx-text-fill: #8892a4; }
+.table-row-cell {
+    -fx-background-color: #1e2535;
+    -fx-border-color: transparent transparent #2d3748 transparent;
+}
+.table-row-cell:hover       { -fx-background-color: #252f42; }
+.table-row-cell:selected    { -fx-background-color: #1a2a4a; }
+.table-cell                 { -fx-text-fill: #e2e8f0; }
+.table-view .placeholder    { -fx-background-color: #1e2535; }
+
+/* ─── Search / Filter ─────────────────────────────────────── */
+.search-box, .filter-combo {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+    -fx-prompt-text-fill: #8892a4;
+}
+
+/* ─── POS ─────────────────────────────────────────────────── */
+.pos-product-card {
+    -fx-background-color: #1e2535;
+    -fx-border-color: #2d3748;
+}
+.pos-product-card:hover    { -fx-border-color: #2563eb; }
+.pos-product-name          { -fx-text-fill: #e2e8f0; }
+.pos-cart-panel            { -fx-background-color: #1e2535; -fx-border-color: #2d3748; }
+.pos-cart-header           { -fx-background-color: #161b27; -fx-border-color: transparent transparent #2d3748 transparent; }
+.pos-total-area            { -fx-background-color: #161b27; -fx-border-color: #2d3748 transparent transparent transparent; }
+.pos-total-label           { -fx-text-fill: #8892a4; }
+.pos-total-value           { -fx-text-fill: #e2e8f0; }
+.pos-grand-total-label     { -fx-text-fill: #e2e8f0; }
+.pos-grand-total-value     { -fx-text-fill: #e2e8f0; }
+.pos-numpad-btn {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+}
+.pos-numpad-btn:hover      { -fx-background-color: #3d4f6b; }
+.pos-category-btn {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #a0aec0;
+}
+
+/* ─── Form Fields ─────────────────────────────────────────── */
+.form-label { -fx-text-fill: #e2e8f0; }
+.form-field, .form-area {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+    -fx-prompt-text-fill: #8892a4;
+}
+.form-field:focused, .form-area:focused { -fx-border-color: #2563eb; }
+
+/* ─── Dialog ──────────────────────────────────────────────── */
+.dialog-pane                 { -fx-background-color: #1e2535; }
+.dialog-pane .header-panel   { -fx-background-color: #1e2535; }
+.dialog-pane .content        { -fx-background-color: #1e2535; }
+.dialog-pane .button-bar     { -fx-background-color: #161b27; -fx-border-color: #2d3748 transparent transparent transparent; }
+.dialog-pane .button-bar .button { -fx-background-color: #2d3748; -fx-text-fill: #e2e8f0; -fx-border-color: #3d4f6b; }
+
+/* ─── Scroll Bars ─────────────────────────────────────────── */
+.scroll-bar .thumb           { -fx-background-color: #3d4f6b; }
+.scroll-bar .thumb:hover     { -fx-background-color: #4a6080; }
+.scroll-bar .track           { -fx-background-color: #161b27; }
+
+/* ─── Separator ───────────────────────────────────────────── */
+.separator .line             { -fx-border-color: #2d3748; }
+
+/* ─── Labels / Text ───────────────────────────────────────── */
+.label                       { -fx-text-fill: #e2e8f0; }
+.text-muted                  { -fx-text-fill: #8892a4; }
+
+/* ─── Buttons (non-colored) ───────────────────────────────── */
+.btn-secondary {
+    -fx-background-color: #2d3748;
+    -fx-text-fill: #e2e8f0;
+    -fx-border-color: #3d4f6b;
+}
+.btn-secondary:hover         { -fx-background-color: #3d4f6b; }
+
+/* ─── ComboBox / ChoiceBox ─────────────────────────────────── */
+.combo-box, .choice-box {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+}
+.combo-box .arrow-button     { -fx-background-color: #2d3748; }
+.combo-box-popup .list-view  { -fx-background-color: #1e2535; -fx-border-color: #3d4f6b; }
+.combo-box-popup .list-cell  { -fx-background-color: #1e2535; -fx-text-fill: #e2e8f0; }
+.combo-box-popup .list-cell:hover    { -fx-background-color: #2d3748; }
+.combo-box-popup .list-cell:selected { -fx-background-color: #1a2a4a; }
+
+/* ─── TextField / PasswordField ───────────────────────────── */
+.text-field, .password-field, .text-area {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+    -fx-prompt-text-fill: #8892a4;
+    -fx-highlight-fill: #2563eb;
+}
+.text-field:focused, .password-field:focused, .text-area:focused {
+    -fx-border-color: #2563eb;
+}
+
+/* ─── CheckBox / RadioButton ──────────────────────────────── */
+.check-box .box              { -fx-background-color: #2d3748; -fx-border-color: #3d4f6b; }
+.check-box:selected .box     { -fx-background-color: #2563eb; -fx-border-color: #2563eb; }
+.check-box .text             { -fx-text-fill: #e2e8f0; }
+
+/* ─── Tab pane ────────────────────────────────────────────── */
+.tab-pane .tab-header-area   { -fx-background-color: #1e2535; }
+.tab-pane .tab-header-background { -fx-background-color: #1e2535; }
+.tab                         { -fx-background-color: #2d3748; }
+.tab:selected                { -fx-background-color: #1e2535; }
+.tab .tab-label              { -fx-text-fill: #8892a4; }
+.tab:selected .tab-label     { -fx-text-fill: #e2e8f0; }
+
+/* ─── Spinner / Progress ──────────────────────────────────── */
+.progress-bar .bar           { -fx-background-color: #2563eb; }
+.progress-bar .track         { -fx-background-color: #2d3748; }
+
+/* ─── Tooltip ─────────────────────────────────────────────── */
+.tooltip                     { -fx-background-color: #0f1420; -fx-text-fill: #e2e8f0; -fx-border-color: #2d3748; }
+
+/* ─── Context Menu ────────────────────────────────────────── */
+.context-menu                { -fx-background-color: #1e2535; -fx-border-color: #2d3748; }
+.menu-item                   { -fx-background-color: transparent; }
+.menu-item:hover             { -fx-background-color: #2d3748; }
+.menu-item .label            { -fx-text-fill: #e2e8f0; }
+
+/* ─── DatePicker ──────────────────────────────────────────── */
+.date-picker .text-field      {
+    -fx-background-color: #2d3748;
+    -fx-border-color: #3d4f6b;
+    -fx-text-fill: #e2e8f0;
+}
+.date-picker-popup .calendar-grid { -fx-background-color: #1e2535; }
+.date-picker-popup .day-cell  { -fx-background-color: transparent; -fx-text-fill: #e2e8f0; }
+.date-picker-popup .day-cell:hover { -fx-background-color: #2d3748; }
+.date-picker-popup .today.day-cell { -fx-border-color: #2563eb; }
+.date-picker-popup .selected.day-cell { -fx-background-color: #2563eb; -fx-text-fill: white; }
+
+/* ─── Inline-style overrides via pseudo-class ─────────────── */
+/* For nodes that use inline -fx-background-color:white or #f8fafc */
+/* These are applied globally so views don't need to be changed  */
+.dark-panel     { -fx-background-color: #1e2535 !important; }
+.dark-surface   { -fx-background-color: #161b27 !important; }
+.dark-border    { -fx-border-color: #2d3748 !important; }

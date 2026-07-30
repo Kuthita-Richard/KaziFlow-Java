@@ -1,0 +1,617 @@
+/* ════════════════════════════════════════════════════════════
+   KaziFlow ERP – Main Stylesheet
+   Matches the design mockups: dark sidebar + white content
+   ════════════════════════════════════════════════════════════ */
+
+/* ─── Root Variables ──────────────────────────────────────── */
+.root {
+    -kf-navy:       #0d1b2a;
+    -kf-navy-mid:   #1e2d3d;
+    -kf-navy-light: #243447;
+    -kf-blue:       #2563eb;
+    -kf-blue-hover: #1d4ed8;
+    -kf-blue-light: #eff6ff;
+    -kf-white:      #ffffff;
+    -kf-gray-50:    #f8fafc;
+    -kf-gray-100:   #f1f5f9;
+    -kf-gray-200:   #e2e8f0;
+    -kf-gray-400:   #94a3b8;
+    -kf-gray-600:   #475569;
+    -kf-gray-800:   #1e293b;
+    -kf-green:      #16a34a;
+    -kf-green-bg:   #dcfce7;
+    -kf-red:        #dc2626;
+    -kf-red-bg:     #fee2e2;
+    -kf-orange:     #d97706;
+    -kf-orange-bg:  #fef3c7;
+    -kf-purple:     #7c3aed;
+    -kf-purple-bg:  #ede9fe;
+    -fx-font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    -fx-font-size: 13px;
+}
+
+/* ─── Login Screen ────────────────────────────────────────── */
+.login-root {
+    -fx-background-color: -kf-white;
+}
+.login-left {
+    -fx-background-color: -kf-navy;
+    -fx-padding: 48;
+}
+.login-brand-icon {
+    -fx-background-color: -kf-navy-mid;
+    -fx-background-radius: 8;
+    -fx-padding: 8;
+}
+.login-brand-text {
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+.login-headline {
+    -fx-text-fill: white;
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+    -fx-wrap-text: true;
+}
+.login-subtitle {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 14px;
+    -fx-wrap-text: true;
+}
+.login-right {
+    -fx-background-color: -kf-white;
+    -fx-padding: 64;
+    -fx-alignment: center;
+}
+.login-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.login-hint {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 13px;
+}
+.login-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+    -fx-font-size: 13px;
+}
+.login-field {
+    -fx-pref-height: 44px;
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-font-size: 14px;
+    -fx-padding: 0 12;
+}
+.login-field:focused {
+    -fx-border-color: -kf-blue;
+    -fx-border-width: 2;
+}
+.btn-primary {
+    -fx-background-color: -kf-blue;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-pref-height: 44px;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+}
+.btn-primary:hover {
+    -fx-background-color: -kf-blue-hover;
+}
+.btn-secondary {
+    -fx-background-color: white;
+    -fx-text-fill: -kf-gray-800;
+    -fx-font-size: 13px;
+    -fx-pref-height: 38px;
+    -fx-background-radius: 8;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+.btn-secondary:hover {
+    -fx-background-color: -kf-gray-50;
+}
+.btn-danger {
+    -fx-background-color: -kf-red;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-pref-height: 36px;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+.btn-success {
+    -fx-background-color: -kf-green;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-pref-height: 36px;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+.link-text {
+    -fx-text-fill: -kf-blue;
+    -fx-cursor: hand;
+    -fx-font-size: 13px;
+}
+.trust-text {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 12px;
+}
+.error-label {
+    -fx-text-fill: -kf-red;
+    -fx-font-size: 12px;
+}
+
+/* ─── Main Layout ─────────────────────────────────────────── */
+.main-root {
+    -fx-background-color: -kf-gray-50;
+}
+.sidebar {
+    -fx-background-color: -kf-navy;
+    -fx-pref-width: 200px;
+    -fx-padding: 0;
+}
+.sidebar-brand {
+    -fx-padding: 20 16;
+    -fx-alignment: center-left;
+    -fx-spacing: 10;
+}
+.sidebar-logo-box {
+    -fx-background-color: -kf-navy-mid;
+    -fx-background-radius: 8;
+    -fx-padding: 6;
+}
+.sidebar-brand-text {
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+.nav-section-label {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-padding: 16 16 4 16;
+}
+.nav-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 13px;
+    -fx-alignment: center-left;
+    -fx-pref-width: 200px;
+    -fx-pref-height: 40px;
+    -fx-padding: 0 16;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 10;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0;
+}
+.nav-btn:hover {
+    -fx-background-color: -kf-navy-mid;
+    -fx-text-fill: white;
+}
+.nav-btn-active {
+    -fx-background-color: -kf-blue;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+.nav-btn-active:hover {
+    -fx-background-color: -kf-blue-hover;
+}
+.sidebar-footer {
+    -fx-padding: 12 16;
+    -fx-border-color: -kf-navy-mid transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+.sidebar-user-name {
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+.sidebar-user-role {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 11px;
+}
+.content-area {
+    -fx-background-color: -kf-gray-50;
+}
+.topbar {
+    -fx-background-color: white;
+    -fx-padding: 0 24;
+    -fx-pref-height: 60px;
+    -fx-border-color: transparent transparent -kf-gray-200 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-alignment: center-left;
+    -fx-spacing: 12;
+}
+.page-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.breadcrumb {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 12px;
+}
+
+/* ─── Page Content ────────────────────────────────────────── */
+.page-content {
+    -fx-padding: 24;
+    -fx-spacing: 20;
+}
+
+/* ─── Stat Cards ──────────────────────────────────────────── */
+.stat-card {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 8, 0, 0, 2);
+}
+.stat-label {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.stat-value {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.stat-value-red {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-red;
+}
+.stat-value-blue {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-blue;
+}
+.stat-change-up {
+    -fx-text-fill: -kf-green;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+.stat-change-note {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 12px;
+}
+
+/* ─── Cards / Panels ──────────────────────────────────────── */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 12;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 20;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 8, 0, 0, 2);
+}
+.card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.card-subtitle {
+    -fx-font-size: 12px;
+    -fx-text-fill: -kf-gray-400;
+}
+
+/* ─── Tables ──────────────────────────────────────────────── */
+.table-view {
+    -fx-background-color: white;
+    -fx-background-radius: 0;
+    -fx-border-color: transparent;
+    -fx-table-cell-border-color: -kf-gray-100;
+}
+.table-view .column-header-background {
+    -fx-background-color: -kf-gray-50;
+}
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -kf-gray-200 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.table-view .column-header .label {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 12 8;
+}
+.table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent -kf-gray-100 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-cell-size: 52px;
+}
+.table-row-cell:hover {
+    -fx-background-color: -kf-gray-50;
+}
+.table-row-cell:selected {
+    -fx-background-color: -kf-blue-light;
+}
+.table-cell {
+    -fx-text-fill: -kf-gray-800;
+    -fx-font-size: 13px;
+    -fx-padding: 0 8;
+}
+.table-view .placeholder {
+    -fx-background-color: white;
+}
+
+/* ─── Search / Filter Bar ─────────────────────────────────── */
+.search-box {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-pref-height: 38px;
+    -fx-pref-width: 280px;
+    -fx-padding: 0 12;
+    -fx-font-size: 13px;
+}
+.search-box:focused {
+    -fx-border-color: -kf-blue;
+}
+.filter-combo {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-pref-height: 36px;
+    -fx-font-size: 13px;
+}
+
+/* ─── Status Badges ───────────────────────────────────────── */
+.badge {
+    -fx-background-radius: 20;
+    -fx-padding: 3 10;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+.badge-green {
+    -fx-background-color: -kf-green-bg;
+    -fx-text-fill: -kf-green;
+}
+.badge-red {
+    -fx-background-color: -kf-red-bg;
+    -fx-text-fill: -kf-red;
+}
+.badge-orange {
+    -fx-background-color: -kf-orange-bg;
+    -fx-text-fill: -kf-orange;
+}
+.badge-blue {
+    -fx-background-color: -kf-blue-light;
+    -fx-text-fill: -kf-blue;
+}
+.badge-purple {
+    -fx-background-color: -kf-purple-bg;
+    -fx-text-fill: -kf-purple;
+}
+.badge-gray {
+    -fx-background-color: -kf-gray-100;
+    -fx-text-fill: -kf-gray-600;
+}
+
+/* ─── POS ─────────────────────────────────────────────────── */
+.pos-product-card {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+    -fx-padding: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.04), 6, 0, 0, 1);
+}
+.pos-product-card:hover {
+    -fx-border-color: -kf-blue;
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.15), 10, 0, 0, 2);
+}
+.pos-product-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+    -fx-wrap-text: true;
+}
+.pos-product-price {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-blue;
+}
+.pos-cart-panel {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-width: 0 0 0 1;
+    -fx-pref-width: 340px;
+}
+.pos-cart-header {
+    -fx-background-color: -kf-gray-50;
+    -fx-padding: 12 16;
+    -fx-border-color: transparent transparent -kf-gray-200 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.pos-cart-order {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-blue;
+}
+.pos-total-area {
+    -fx-background-color: -kf-gray-50;
+    -fx-padding: 16;
+    -fx-border-color: -kf-gray-200 transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+.pos-total-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: -kf-gray-600;
+}
+.pos-total-value {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.pos-grand-total-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.pos-grand-total-value {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.pos-numpad-btn {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+    -fx-pref-width: 64px;
+    -fx-pref-height: 48px;
+    -fx-cursor: hand;
+}
+.pos-numpad-btn:hover {
+    -fx-background-color: -kf-gray-50;
+}
+.pos-category-btn {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-font-size: 12px;
+    -fx-padding: 5 14;
+    -fx-cursor: hand;
+    -fx-text-fill: -kf-gray-600;
+}
+.pos-category-btn-active {
+    -fx-background-color: -kf-blue;
+    -fx-text-fill: white;
+    -fx-border-color: -kf-blue;
+    -fx-font-weight: bold;
+}
+
+/* ─── Form Fields ─────────────────────────────────────────── */
+.form-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -kf-gray-800;
+}
+.form-field {
+    -fx-pref-height: 38px;
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+    -fx-padding: 0 10;
+}
+.form-field:focused {
+    -fx-border-color: -kf-blue;
+}
+.form-area {
+    -fx-background-color: white;
+    -fx-border-color: -kf-gray-200;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-size: 13px;
+    -fx-padding: 8;
+}
+
+/* ─── Dialog / Modal ──────────────────────────────────────── */
+.dialog-pane {
+    -fx-background-color: white;
+    -fx-padding: 0;
+}
+.dialog-pane .header-panel {
+    -fx-background-color: white;
+    -fx-padding: 20 24 0 24;
+}
+.dialog-pane .content {
+    -fx-padding: 16 24;
+}
+.dialog-pane .button-bar {
+    -fx-padding: 12 24 16 24;
+    -fx-background-color: -kf-gray-50;
+    -fx-border-color: -kf-gray-200 transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+
+/* ─── Scroll Bars ─────────────────────────────────────────── */
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+.scroll-bar .thumb {
+    -fx-background-color: -kf-gray-200;
+    -fx-background-radius: 4;
+}
+.scroll-bar .thumb:hover {
+    -fx-background-color: -kf-gray-400;
+}
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.scroll-bar .increment-arrow,
+.scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
+}
+
+/* ─── Separator ───────────────────────────────────────────── */
+.separator .line {
+    -fx-border-color: -kf-gray-200;
+}
+
+/* ─── Misc ────────────────────────────────────────────────── */
+.text-muted {
+    -fx-text-fill: -kf-gray-400;
+    -fx-font-size: 12px;
+}
+.text-bold {
+    -fx-font-weight: bold;
+}
+.text-red {
+    -fx-text-fill: -kf-red;
+    -fx-font-weight: bold;
+}
+.text-green {
+    -fx-text-fill: -kf-green;
+    -fx-font-weight: bold;
+}
+.text-blue {
+    -fx-text-fill: -kf-blue;
+}
+.divider {
+    -fx-background-color: -kf-gray-200;
+    -fx-pref-height: 1;
+}
+.stock-badge-green {
+    -fx-text-fill: -kf-green;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+.stock-badge-orange {
+    -fx-text-fill: -kf-orange;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+.stock-badge-red {
+    -fx-text-fill: -kf-red;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}

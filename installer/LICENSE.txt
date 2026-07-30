@@ -1,0 +1,59 @@
+KaziFlow ERP — End User License Agreement
+==========================================
+Copyright (c) 2026 Richard Kuthita. All rights reserved.
+
+This software, KaziFlow ERP, including its source code, documentation,
+and accompanying materials, is the proprietary property of Richard Kuthita
+("the Author").
+
+1. GRANT OF LICENSE
+   Subject to the terms of a valid license key issued by the Author, you
+   are granted a non-exclusive, non-transferable license to install and
+   use one (1) copy of KaziFlow ERP on the number of machines permitted
+   by your license edition (Trial: 1 machine, 30 days; Standard/Pro/
+   Enterprise: 1 machine per license key, perpetual).
+
+2. TRIAL PERIOD
+   A 30-day trial period is provided with full feature access. No
+   payment is required to begin a trial. At the end of the trial period,
+   the application will display a notice requesting activation. Your
+   business data is never locked, deleted, or restricted as a result of
+   trial expiry.
+
+3. RESTRICTIONS
+   You may not: (a) reverse engineer, decompile, or disassemble the
+   software except where permitted by law; (b) redistribute, sublicense,
+   rent, lease, or sell the software; (c) remove or alter any proprietary
+   notices; (d) use the software beyond the limits of your license
+   edition without obtaining an upgraded license.
+
+4. DATA OWNERSHIP
+   All business data created, entered, or stored using KaziFlow ERP
+   (products, sales, customers, employees, financial records, etc.)
+   remains the exclusive property of the licensee. The Author claims no
+   ownership over user-generated business data.
+
+5. WARRANTY DISCLAIMER
+   THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+   EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+
+6. LIMITATION OF LIABILITY
+   IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+   INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE
+   OF OR INABILITY TO USE THIS SOFTWARE.
+
+7. SUPPORT
+   Support is provided via support@kaziflow.co.ke and the in-app Help
+   center. Response times and scope of support vary by license edition.
+
+8. TERMINATION
+   This license terminates automatically if you fail to comply with any
+   term herein. Upon termination, you must cease all use of the software;
+   your business data remains accessible to you via standard SQLite
+   tooling regardless of license status.
+
+By installing this software, you acknowledge that you have read and
+agree to the terms of this license.
+
+Contact: support@kaziflow.co.ke
