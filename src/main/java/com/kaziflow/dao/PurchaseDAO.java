@@ -61,7 +61,17 @@ public class PurchaseDAO {
                     purchase.setId(keys.getInt(1));
                     for (PurchaseItem item : purchase.getItems()) {
                         savePurchaseItem(purchase.getId(), item, conn);
-                        addStock(item.getProductId(), item.getQuantity(), conn);
+                        // Stock only increases once goods are actually confirmed received — not
+                        // the moment a purchase order is merely created. The status column and
+                        // received_by column were already designed for exactly this distinction
+                        // (CHECK(status IN ('pending','received','partial'))), but stock was being
+                        // added unconditionally regardless of status, inflating on-hand quantity
+                        // for orders that hadn't physically arrived yet. If the purchase is created
+                        // already marked 'received' (a same-day cash purchase, for example), stock
+                        // is added immediately; otherwise markReceived() below handles it later.
+                        if ("received".equals(purchase.getStatus())) {
+                            addStock(item.getProductId(), item.getQuantity(), conn);
+                        }
                     }
                     // Update supplier outstanding balance
                     if ("credit".equals(purchase.getPaymentMethod()) || "unpaid".equals(purchase.getPaymentStatus())) {
@@ -89,6 +99,44 @@ public class PurchaseDAO {
             ps.setDouble(6, item.getLineTotal());
             ps.executeUpdate();
         }
+    }
+
+    /**
+     * Marks a pending (or partial) purchase as received: adds stock for every
+     * line item and records who received it. Guarded so it can never be
+     * applied twice — the WHERE clause only matches purchases not already
+     * 'received', so a double-click or repeat call is a safe no-op rather
+     * than double-crediting stock.
+     */
+    public boolean markReceived(int purchaseId, int receivedByUserId) {
+        try (Connection conn = getConn()) {
+            conn.setAutoCommit(false);
+            try {
+                int updated;
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE purchases SET status='received', received_by=? WHERE id=? AND status != 'received'")) {
+                    ps.setInt(1, receivedByUserId);
+                    ps.setInt(2, purchaseId);
+                    updated = ps.executeUpdate();
+                }
+                if (updated == 0) { conn.rollback(); return false; } // already received, or doesn't exist
+
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "SELECT product_id, quantity FROM purchase_items WHERE purchase_id=?")) {
+                    ps.setInt(1, purchaseId);
+                    ResultSet rs = ps.executeQuery();
+                    while (rs.next()) {
+                        addStock(rs.getInt("product_id"), rs.getDouble("quantity"), conn);
+                    }
+                }
+                conn.commit();
+                return true;
+            } catch (Exception ex) {
+                conn.rollback();
+                ex.printStackTrace();
+                return false;
+            }
+        } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
     private void addStock(int productId, double qty, Connection conn) throws SQLException {

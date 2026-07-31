@@ -335,13 +335,45 @@ public class PurchasesView {
         }); paymentCol.setPrefWidth(130);
 
         TableColumn<Purchase,Void> actCol = new TableColumn<>("");
-        actCol.setPrefWidth(80);
+        actCol.setPrefWidth(170);
         actCol.setCellFactory(c->new TableCell<>(){
             private final Button viewBtn=new Button("👁 View");
+            private final Button receiveBtn=new Button("📥 Receive");
+            private final HBox box = new HBox(6, viewBtn, receiveBtn);
             {viewBtn.setStyle("-fx-background-color:white;-fx-border-color:#e2e8f0;-fx-border-radius:5;-fx-background-radius:5;-fx-text-fill:#475569;-fx-cursor:hand;-fx-font-size:11px;-fx-padding:4 8;");
              viewBtn.setOnAction(e->showPurchaseDetail(getTableView().getItems().get(getIndex())));
+             receiveBtn.setStyle("-fx-background-color:#16a34a;-fx-border-radius:5;-fx-background-radius:5;-fx-text-fill:white;-fx-cursor:hand;-fx-font-size:11px;-fx-padding:4 8;");
+             receiveBtn.setOnAction(e -> {
+                 Purchase p = getTableView().getItems().get(getIndex());
+                 Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                     "Mark " + p.getPurchaseNumber() + " as received? This adds all its items to stock — "
+                     + "only do this once the goods have actually arrived.", ButtonType.YES, ButtonType.NO);
+                 confirm.setHeaderText("Confirm Receipt");
+                 confirm.showAndWait().ifPresent(btn -> {
+                     if (btn != ButtonType.YES) return;
+                     int userId = 1;
+                     try { userId = com.kaziflow.utils.SessionManager.getInstance().getCurrentUser().getId(); } catch (Exception ignored) {}
+                     boolean ok = purchaseDAO.markReceived(p.getId(), userId);
+                     if (ok) {
+                         com.kaziflow.utils.Toast.success(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                             "Received", p.getPurchaseNumber() + " marked received — stock updated.");
+                         loadPurchases();
+                     } else {
+                         com.kaziflow.utils.Toast.error(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                             "Failed", "Could not mark as received (it may already be received).");
+                     }
+                 });
+             });
             }
-            @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:viewBtn);}
+            @Override protected void updateItem(Void v,boolean empty){
+                super.updateItem(v,empty);
+                if (empty) { setGraphic(null); return; }
+                Purchase p = getTableView().getItems().get(getIndex());
+                boolean alreadyReceived = "received".equals(p.getStatus());
+                receiveBtn.setVisible(!alreadyReceived);
+                receiveBtn.setManaged(!alreadyReceived);
+                setGraphic(box);
+            }
         });
 
         tv.getColumns().addAll(poCol, supplierCol, dateCol, totalCol, statusCol, paymentCol, actCol);
