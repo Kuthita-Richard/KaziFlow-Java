@@ -11,6 +11,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 public class SettingsView {
 
@@ -144,6 +146,12 @@ public class SettingsView {
             {"🖧", "Network / Multi-Computer", "Share this database with other computers on the same network.",
                 com.kaziflow.network.NetworkConfig.getInstance().getMode().name(), "#2563eb", "module_network"},
             {"⊞", "Tax Settings",         "VAT rates (16%), ETIMS configuration, and tax categories.",        "VAT: 16%",         "", "module_tax"},
+            {"🧾", "Payroll Tax Settings", "NSSF, SHIF, Housing Levy, NITA, and PAYE bands — every rate is "
+                + "editable here since Kenyan statutory rates change often.",
+                com.kaziflow.services.PayrollTaxConfig.getInstance().getPersonalReliefMonthly() == 2400
+                    && com.kaziflow.services.PayrollTaxConfig.getInstance().getNssfUel() == 108000
+                    ? "Using current defaults" : "Customized",
+                "", "module_payroll_tax"},
             {"💱", "Currency",             "Choose your display currency and set USD/EUR exchange rates.",
                 com.kaziflow.services.CurrencyService.getInstance().getActiveCurrency(), "#2563eb", "module_currency"},
             {"⚙", "System Modules",       "Enable or disable individual modules — useful if your business spans "
@@ -239,6 +247,9 @@ public class SettingsView {
         }
         if (title.equals("Tax Settings")) {
             card.setOnMouseClicked(e -> showTaxSettingsDialog());
+        }
+        if (title.equals("Payroll Tax Settings")) {
+            card.setOnMouseClicked(e -> showPayrollTaxDialog());
         }
         if (title.equals("Currency")) {
             card.setOnMouseClicked(e -> showCurrencyDialog());
@@ -422,6 +433,126 @@ public class SettingsView {
             } catch (Exception ex) {
                 com.kaziflow.utils.Toast.error(com.kaziflow.utils.SceneManager.getInstance().getStage(),
                     "Error", ex.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Every Kenya statutory payroll rate, made fully editable — per explicit
+     * request, since these rates have changed multiple times in the last two
+     * years (SHIF replaced NHIF Oct 2024, NSSF thresholds jumped again Feb
+     * 2026, Housing Levy's PAYE-deductibility is disputed across sources)
+     * and hardcoding them means every future change needs a code update.
+     */
+    private void showPayrollTaxDialog() {
+        com.kaziflow.services.PayrollTaxConfig cfg = com.kaziflow.services.PayrollTaxConfig.getInstance();
+
+        Dialog<ButtonType> d = new Dialog<>();
+        d.setTitle("Payroll Tax Settings");
+        d.getDialogPane().setPrefWidth(560);
+
+        VBox root = new VBox(16);
+        root.setPadding(new Insets(18));
+
+        Label note = new Label("Defaults reflect rates verified current as of July 2026. Kenyan statutory "
+            + "rates change often — if KRA/NSSF/SHIF announce new figures, update them here rather than "
+            + "waiting for an app update. \"Reset to Defaults\" restores the last-known-current values below.");
+        note.setWrapText(true);
+        note.setStyle("-fx-text-fill:#64748b;-fx-font-size:11px;");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(12); grid.setVgap(10);
+
+        TextField nssfLelF = new TextField(String.valueOf(cfg.getNssfLel()));
+        TextField nssfUelF = new TextField(String.valueOf(cfg.getNssfUel()));
+        TextField nssfRateF = new TextField(String.valueOf(cfg.getNssfRatePercent()));
+        TextField shifRateF = new TextField(String.valueOf(cfg.getShifRatePercent()));
+        TextField shifMinF = new TextField(String.valueOf(cfg.getShifMinimum()));
+        TextField housingRateF = new TextField(String.valueOf(cfg.getHousingLevyRatePercent()));
+        CheckBox housingReducesTaxableCb = new CheckBox("Housing Levy reduces PAYE taxable income "
+            + "(disputed in current guidance — confirm with your accountant)");
+        housingReducesTaxableCb.setSelected(cfg.isHousingLevyReducesTaxableIncome());
+        housingReducesTaxableCb.setWrapText(true);
+        housingReducesTaxableCb.setStyle("-fx-font-size:11px;");
+        TextField nitaF = new TextField(String.valueOf(cfg.getNitaFlat()));
+        TextField reliefF = new TextField(String.valueOf(cfg.getPersonalReliefMonthly()));
+
+        int r = 0;
+        grid.add(new Label("NSSF Lower Limit (Tier I bound, KES)"), 0, r); grid.add(nssfLelF, 1, r++);
+        grid.add(new Label("NSSF Upper Limit (Tier II bound, KES)"), 0, r); grid.add(nssfUelF, 1, r++);
+        grid.add(new Label("NSSF Rate (%)"), 0, r); grid.add(nssfRateF, 1, r++);
+        grid.add(new Label("SHIF Rate (%)"), 0, r); grid.add(shifRateF, 1, r++);
+        grid.add(new Label("SHIF Minimum (KES)"), 0, r); grid.add(shifMinF, 1, r++);
+        grid.add(new Label("Housing Levy Rate (%)"), 0, r); grid.add(housingRateF, 1, r++);
+        grid.add(new Label("NITA (flat, KES)"), 0, r); grid.add(nitaF, 1, r++);
+        grid.add(new Label("Personal Relief (monthly, KES)"), 0, r); grid.add(reliefF, 1, r++);
+
+        Label bandsLabel = new Label("PAYE Bands — taxable income up to (KES) : rate (%)");
+        bandsLabel.setStyle("-fx-font-weight:bold;-fx-font-size:12px;-fx-padding:8 0 0 0;");
+
+        VBox bandsBox = new VBox(6);
+        List<HBox> bandRows = new ArrayList<>();
+        java.util.function.Consumer<com.kaziflow.services.PayrollTaxConfig.PayeBand> addRow = band -> {
+            TextField upperF = new TextField(String.valueOf(band.upperBound()));
+            TextField rateF = new TextField(String.valueOf(band.ratePercent()));
+            upperF.setPrefWidth(140); rateF.setPrefWidth(80);
+            Button removeBtn = new Button("✕");
+            removeBtn.setStyle("-fx-background-color:transparent;-fx-text-fill:#dc2626;-fx-cursor:hand;");
+            HBox row = new HBox(8, upperF, new Label("KES  →"), rateF, new Label("%"), removeBtn);
+            row.setAlignment(Pos.CENTER_LEFT);
+            removeBtn.setOnAction(e -> { bandsBox.getChildren().remove(row); bandRows.remove(row); });
+            bandRows.add(row);
+            bandsBox.getChildren().add(row);
+        };
+        for (var band : cfg.getPayeBands()) addRow.accept(band);
+
+        Button addBandBtn = new Button("+ Add Band");
+        addBandBtn.setStyle("-fx-background-color:white;-fx-border-color:#e2e8f0;-fx-border-radius:6;-fx-background-radius:6;-fx-cursor:hand;-fx-font-size:11px;");
+        addBandBtn.setOnAction(e -> addRow.accept(new com.kaziflow.services.PayrollTaxConfig.PayeBand(0, 0)));
+
+        ScrollPane scroll = new ScrollPane(root);
+        scroll.setFitToWidth(true);
+        scroll.setPrefHeight(500);
+
+        root.getChildren().addAll(note, grid, housingReducesTaxableCb, bandsLabel, bandsBox, addBandBtn);
+        d.getDialogPane().setContent(scroll);
+
+        ButtonType resetBtn = new ButtonType("Reset to Defaults");
+        ButtonType saveBtn = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        d.getDialogPane().getButtonTypes().addAll(resetBtn, saveBtn, ButtonType.CANCEL);
+
+        d.showAndWait().ifPresent(btn -> {
+            if (btn == resetBtn) {
+                cfg.resetToDefaults();
+                com.kaziflow.utils.Toast.success(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                    "Reset", "Payroll tax rates restored to current defaults.");
+            } else if (btn == saveBtn) {
+                try {
+                    List<com.kaziflow.services.PayrollTaxConfig.PayeBand> bands = new ArrayList<>();
+                    for (HBox row : bandRows) {
+                        TextField upperF = (TextField) row.getChildren().get(0);
+                        TextField rateF = (TextField) row.getChildren().get(2);
+                        bands.add(new com.kaziflow.services.PayrollTaxConfig.PayeBand(
+                            Double.parseDouble(upperF.getText().trim()), Double.parseDouble(rateF.getText().trim())));
+                    }
+                    if (bands.isEmpty()) {
+                        com.kaziflow.utils.Toast.error(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                            "Invalid Bands", "At least one PAYE band is required.");
+                        return;
+                    }
+                    cfg.save(
+                        Double.parseDouble(nssfLelF.getText().trim()), Double.parseDouble(nssfUelF.getText().trim()),
+                        Double.parseDouble(nssfRateF.getText().trim()), Double.parseDouble(shifRateF.getText().trim()),
+                        Double.parseDouble(shifMinF.getText().trim()), Double.parseDouble(housingRateF.getText().trim()),
+                        housingReducesTaxableCb.isSelected(), Double.parseDouble(nitaF.getText().trim()),
+                        Double.parseDouble(reliefF.getText().trim()), bands
+                    );
+                    com.kaziflow.utils.Toast.success(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                        "Saved", "Payroll tax rates updated — future payroll runs will use these values.");
+                } catch (NumberFormatException ex) {
+                    com.kaziflow.utils.Toast.error(com.kaziflow.utils.SceneManager.getInstance().getStage(),
+                        "Invalid Input", "All rates and bands must be valid numbers.");
+                }
             }
         });
     }
@@ -692,7 +823,7 @@ public class SettingsView {
         com.kaziflow.modules.ModuleRegistry registry = com.kaziflow.modules.ModuleRegistry.getInstance();
         java.util.Set<String> currentlyEnabled = registry.getEnabledModuleIds();
 
-        Dialog<Void> d = new Dialog<>();
+        Dialog<ButtonType> d = new Dialog<>();
         d.setTitle("System Modules");
         d.getDialogPane().setPrefWidth(480);
 

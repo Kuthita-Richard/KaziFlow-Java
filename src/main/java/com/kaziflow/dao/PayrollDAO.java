@@ -11,12 +11,21 @@ import java.util.List;
 /**
  * PayrollDAO — Kenya statutory payroll calculations.
  *
- * Deductions applied (2024/2025 Kenya rates):
- *   NSSF Tier I  : 6% of gross up to KES 7,000 (max KES 420)
- *   NSSF Tier II : 6% of gross from KES 7,001 to KES 36,000 (max KES 1,740)
- *   NHIF         : Graduated scale KES 150 – 1,700 based on gross
+ * Deductions applied, verified current as of July 2026:
+ *   NSSF Tier I  : 6% of gross up to KES 9,000 (max KES 540) — Year 4 rates, effective Feb 2026
+ *   NSSF Tier II : 6% of gross from KES 9,001 to KES 108,000 (max KES 5,940) — Year 4 rates, effective Feb 2026
+ *   SHIF         : 2.75% of gross, minimum KES 300, no upper cap — replaced NHIF entirely on 1 Oct 2024.
+ *                  Deductible before PAYE (reduces taxable income), consistently confirmed across sources.
+ *   Housing Levy : 1.5% of gross (AHL), employer matches 1.5%. In force since July 2023.
+ *                  NOTE: whether AHL reduces PAYE's taxable income base is genuinely disputed across
+ *                  secondary sources as of this writing — some say a Dec 2024 amendment made it
+ *                  deductible, others say an earlier relief was repealed and it is NOT deductible,
+ *                  calculated on remaining taxable salary instead. Implemented here as NOT reducing
+ *                  taxable income (the more specific, more consistently-cited claim), but this is a
+ *                  genuinely contested point — confirm the current treatment with KRA or an accountant
+ *                  before relying on this for real payroll filing.
  *   NITA         : KES 50 flat (National Industrial Training Authority)
- *   PAYE         : Progressive tax on taxable income after deductions
+ *   PAYE         : Progressive tax on taxable income after NSSF + SHIF deductions
  *                  Personal relief: KES 2,400/month
  */
 public class PayrollDAO {
@@ -68,15 +77,31 @@ public class PayrollDAO {
                     notes           TEXT
                 )
             """);
+            // Additive migration: SHIF replaced NHIF (Oct 2024) and the Housing Levy (in force since
+            // Jul 2023) was never tracked at all. Added as new columns rather than renaming/dropping
+            // the old 'nhif' ones, following the same idempotent-migration pattern used elsewhere in
+            // this codebase (loyalty_points, delivery_charge, etc.) — 'nhif' stays present for any
+            // historical rows but is no longer populated with new data going forward.
+            for (String stmt : new String[]{
+                "ALTER TABLE payroll_entries ADD COLUMN shif REAL NOT NULL DEFAULT 0",
+                "ALTER TABLE payroll_entries ADD COLUMN housing_levy REAL NOT NULL DEFAULT 0",
+                "ALTER TABLE payroll_entries ADD COLUMN housing_levy_employer REAL NOT NULL DEFAULT 0",
+                "ALTER TABLE payroll_runs ADD COLUMN total_shif REAL DEFAULT 0",
+                "ALTER TABLE payroll_runs ADD COLUMN total_housing_levy REAL DEFAULT 0",
+            }) {
+                try { s.execute(stmt); } catch (SQLException ignored) { /* already exists on repeat runs */ }
+            }
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // ── Kenya Tax Calculations ────────────────────────────────────────────
+    // ── Kenya Tax Calculations (rates are configurable — see PayrollTaxConfig, Settings → Payroll Tax) ──
 
-    /** NSSF employee contribution (Tier I + Tier II) */
+    /** NSSF employee contribution (Tier I + Tier II), using whatever rates are currently configured. */
     public static double calculateNSSF(double gross) {
-        double tierI  = Math.min(gross * 0.06, 420);           // max KES 420
-        double tierII = Math.min(Math.max(gross - 7000, 0) * 0.06, 1740); // max KES 1,740
+        com.kaziflow.services.PayrollTaxConfig cfg = com.kaziflow.services.PayrollTaxConfig.getInstance();
+        double rate = cfg.getNssfRatePercent() / 100.0;
+        double tierI  = Math.min(gross * rate, cfg.getNssfLel() * rate);
+        double tierII = Math.min(Math.max(gross - cfg.getNssfLel(), 0) * rate, (cfg.getNssfUel() - cfg.getNssfLel()) * rate);
         return Math.round((tierI + tierII) * 100.0) / 100.0;
     }
 
@@ -85,59 +110,84 @@ public class PayrollDAO {
         return calculateNSSF(gross);
     }
 
-    /** NHIF contribution — 2024 graduated scale */
-    public static double calculateNHIF(double gross) {
-        if (gross <= 5999)   return 150;
-        if (gross <= 7999)   return 300;
-        if (gross <= 11999)  return 400;
-        if (gross <= 14999)  return 500;
-        if (gross <= 19999)  return 600;
-        if (gross <= 24999)  return 750;
-        if (gross <= 29999)  return 850;
-        if (gross <= 34999)  return 900;
-        if (gross <= 39999)  return 950;
-        if (gross <= 44999)  return 1000;
-        if (gross <= 49999)  return 1100;
-        if (gross <= 59999)  return 1200;
-        if (gross <= 69999)  return 1300;
-        if (gross <= 79999)  return 1400;
-        if (gross <= 89999)  return 1500;
-        if (gross <= 99999)  return 1600;
-        return 1700;
+    /** SHIF (Social Health Insurance Fund) — replaced NHIF entirely on 1 October 2024. Rate/minimum are configurable. */
+    public static double calculateSHIF(double gross) {
+        com.kaziflow.services.PayrollTaxConfig cfg = com.kaziflow.services.PayrollTaxConfig.getInstance();
+        double shif = gross * (cfg.getShifRatePercent() / 100.0);
+        return Math.round(Math.max(shif, cfg.getShifMinimum()) * 100.0) / 100.0;
     }
 
-    /** PAYE — 2024 Kenya progressive tax bands */
+    /** Affordable Housing Levy (AHL) — employee share. Rate is configurable. */
+    public static double calculateHousingLevy(double gross) {
+        double rate = com.kaziflow.services.PayrollTaxConfig.getInstance().getHousingLevyRatePercent() / 100.0;
+        return Math.round(gross * rate * 100.0) / 100.0;
+    }
+
+    /** Affordable Housing Levy — employer share, matches employee. */
+    public static double calculateHousingLevyEmployer(double gross) {
+        return calculateHousingLevy(gross);
+    }
+
+    /**
+     * PAYE — progressive tax on configurable bands (Settings → Payroll Tax → PAYE Bands).
+     * Whether Housing Levy reduces taxable income is also a configurable choice — see
+     * PayrollTaxConfig and this class's header for why that specific point is genuinely
+     * disputed in current guidance rather than settled.
+     */
     public static double calculatePAYE(double gross) {
-        // Taxable income = gross - NSSF employee - NHIF (partial deductible)
+        com.kaziflow.services.PayrollTaxConfig cfg = com.kaziflow.services.PayrollTaxConfig.getInstance();
         double nssf = calculateNSSF(gross);
-        double taxable = gross - nssf;
+        double shif = calculateSHIF(gross);
+        double taxable = gross - nssf - shif;
+        if (cfg.isHousingLevyReducesTaxableIncome()) {
+            taxable -= calculateHousingLevy(gross);
+        }
 
         double tax = 0;
-        if (taxable <= 24000)       tax = taxable * 0.10;
-        else if (taxable <= 32333)  tax = 2400 + (taxable - 24000) * 0.25;
-        else if (taxable <= 500000) tax = 4483 + (taxable - 32333) * 0.30;
-        else if (taxable <= 800000) tax = 144716 + (taxable - 500000) * 0.325;
-        else                        tax = 242216 + (taxable - 800000) * 0.35;
+        double previousBound = 0;
+        double cumulativeTax = 0;
+        for (com.kaziflow.services.PayrollTaxConfig.PayeBand band : cfg.getPayeBands()) {
+            if (taxable <= band.upperBound()) {
+                tax = cumulativeTax + (taxable - previousBound) * (band.ratePercent() / 100.0);
+                break;
+            }
+            cumulativeTax += (band.upperBound() - previousBound) * (band.ratePercent() / 100.0);
+            previousBound = band.upperBound();
+        }
+        if (tax == 0 && !cfg.getPayeBands().isEmpty() && taxable > previousBound) {
+            // taxable income exceeded even the last configured band's upper bound (shouldn't
+            // normally happen since the default top band's bound is set absurdly high, but a
+            // user could configure a lower final bound) — apply the last band's rate to the remainder
+            var lastBand = cfg.getPayeBands().get(cfg.getPayeBands().size() - 1);
+            tax = cumulativeTax + (taxable - previousBound) * (lastBand.ratePercent() / 100.0);
+        }
 
-        // Personal relief KES 2,400/month
-        tax = Math.max(tax - 2400, 0);
+        // Personal relief — configurable
+        tax = Math.max(tax - cfg.getPersonalReliefMonthly(), 0);
         return Math.round(tax * 100.0) / 100.0;
     }
 
-    /** NITA flat rate */
-    public static double NITA = 50.0;
+    /** NITA — configurable flat rate, defaults to KES 50 */
+    public static double getNita() {
+        return com.kaziflow.services.PayrollTaxConfig.getInstance().getNitaFlat();
+    }
 
-    /** Full payslip calculation for one employee */
+    /**
+     * Full payslip calculation for one employee.
+     * Returns [gross, nssfEmployee, nssfEmployer, shif, paye, nita, housingLevy, housingLevyEmployer, totalDeductions, netPay].
+     */
     public static double[] calculate(double gross, double allowances, double otherDeductions) {
         double totalGross   = gross + allowances;
         double nssf         = calculateNSSF(totalGross);
         double nssfEmployer = calculateNSSFEmployer(totalGross);
-        double nhif         = calculateNHIF(totalGross);
+        double shif         = calculateSHIF(totalGross);
         double paye         = calculatePAYE(totalGross);
-        double totalDeductions = nssf + nhif + paye + NITA + otherDeductions;
+        double nita         = getNita();
+        double housingLevy         = calculateHousingLevy(totalGross);
+        double housingLevyEmployer = calculateHousingLevyEmployer(totalGross);
+        double totalDeductions = nssf + shif + paye + nita + housingLevy + otherDeductions;
         double netPay       = totalGross - totalDeductions;
-        // [gross, nssf, nssfEmployer, nhif, paye, nita, totalDeductions, netPay]
-        return new double[]{totalGross, nssf, nssfEmployer, nhif, paye, NITA, totalDeductions, netPay};
+        return new double[]{totalGross, nssf, nssfEmployer, shif, paye, nita, housingLevy, housingLevyEmployer, totalDeductions, netPay};
     }
 
     // ── Payroll Run ───────────────────────────────────────────────────────
@@ -172,8 +222,8 @@ public class PayrollDAO {
                 if (runId < 0) { c.rollback(); return -1; }
 
                 // Process each active employee
-                double totalGross = 0, totalNSSF = 0, totalNHIF = 0,
-                       totalPAYE = 0, totalNITA = 0, totalNet = 0;
+                double totalGross = 0, totalNSSF = 0, totalSHIF = 0,
+                       totalPAYE = 0, totalNITA = 0, totalHousingLevy = 0, totalNet = 0;
                 int empCount = 0;
 
                 try (Statement s = c.createStatement()) {
@@ -186,13 +236,14 @@ public class PayrollDAO {
                     while (rs.next()) {
                         double gross  = rs.getDouble("salary");
                         double[] calc = calculate(gross, 0, 0);
+                        // calc = [gross, nssfEmployee, nssfEmployer, shif, paye, nita, housingLevy, housingLevyEmployer, totalDeductions, netPay]
 
                         try (PreparedStatement ps = c.prepareStatement("""
                             INSERT INTO payroll_entries
                             (run_id,employee_id,employee_name,employee_number,department,position,
-                             gross_salary,nssf_employee,nssf_employer,nhif,nita,paye,
-                             total_deductions,net_pay)
-                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                             gross_salary,nssf_employee,nssf_employer,shif,nita,paye,
+                             housing_levy,housing_levy_employer,total_deductions,net_pay)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                         """)) {
                             ps.setInt(1, runId);
                             ps.setInt(2, rs.getInt("id"));
@@ -203,30 +254,33 @@ public class PayrollDAO {
                             ps.setDouble(7, calc[0]);  // gross
                             ps.setDouble(8, calc[1]);  // nssf employee
                             ps.setDouble(9, calc[2]);  // nssf employer
-                            ps.setDouble(10, calc[3]); // nhif
-                            ps.setDouble(11, calc[4]); // paye
-                            ps.setDouble(12, calc[5]); // nita
-                            ps.setDouble(13, calc[6]); // total deductions
-                            ps.setDouble(14, calc[7]); // net pay
+                            ps.setDouble(10, calc[3]); // shif
+                            ps.setDouble(11, calc[5]); // nita
+                            ps.setDouble(12, calc[4]); // paye
+                            ps.setDouble(13, calc[6]); // housing levy employee
+                            ps.setDouble(14, calc[7]); // housing levy employer
+                            ps.setDouble(15, calc[8]); // total deductions
+                            ps.setDouble(16, calc[9]); // net pay
                             ps.executeUpdate();
                         }
 
                         totalGross += calc[0]; totalNSSF += calc[1];
-                        totalNHIF  += calc[3]; totalPAYE += calc[4];
-                        totalNITA  += calc[5]; totalNet  += calc[7];
+                        totalSHIF  += calc[3]; totalPAYE += calc[4];
+                        totalNITA  += calc[5]; totalHousingLevy += calc[6];
+                        totalNet   += calc[9];
                         empCount++;
                     }
                 }
 
                 // Update run totals
                 try (PreparedStatement ps = c.prepareStatement("""
-                    UPDATE payroll_runs SET total_gross=?,total_nssf=?,total_nhif=?,
-                    total_paye=?,total_nita=?,total_net=?,employee_count=? WHERE id=?
+                    UPDATE payroll_runs SET total_gross=?,total_nssf=?,total_shif=?,
+                    total_paye=?,total_nita=?,total_housing_levy=?,total_net=?,employee_count=? WHERE id=?
                 """)) {
                     ps.setDouble(1, totalGross); ps.setDouble(2, totalNSSF);
-                    ps.setDouble(3, totalNHIF);  ps.setDouble(4, totalPAYE);
-                    ps.setDouble(5, totalNITA);  ps.setDouble(6, totalNet);
-                    ps.setInt(7, empCount);      ps.setInt(8, runId);
+                    ps.setDouble(3, totalSHIF);  ps.setDouble(4, totalPAYE);
+                    ps.setDouble(5, totalNITA);  ps.setDouble(6, totalHousingLevy);
+                    ps.setDouble(7, totalNet);   ps.setInt(8, empCount); ps.setInt(9, runId);
                     ps.executeUpdate();
                 }
 
@@ -280,11 +334,12 @@ public class PayrollDAO {
                     rs.getString("position") != null ? rs.getString("position") : "—",
                     String.format("%.2f", rs.getDouble("gross_salary")),
                     String.format("%.2f", rs.getDouble("nssf_employee")),
-                    String.format("%.2f", rs.getDouble("nhif")),
+                    String.format("%.2f", rs.getDouble("shif")),
                     String.format("%.2f", rs.getDouble("paye")),
                     String.format("%.2f", rs.getDouble("nita")),
                     String.format("%.2f", rs.getDouble("total_deductions")),
-                    String.format("%.2f", rs.getDouble("net_pay"))
+                    String.format("%.2f", rs.getDouble("net_pay")),
+                    String.format("%.2f", rs.getDouble("housing_levy")) // appended, not inserted — keeps every existing index stable for callers
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -320,11 +375,12 @@ public class PayrollDAO {
                     String.valueOf(rs.getInt("employee_count")),
                     String.format("%.2f", rs.getDouble("total_gross")),
                     String.format("%.2f", rs.getDouble("total_nssf")),
-                    String.format("%.2f", rs.getDouble("total_nhif")),
+                    String.format("%.2f", rs.getDouble("total_shif")),
                     String.format("%.2f", rs.getDouble("total_paye")),
                     String.format("%.2f", rs.getDouble("total_nita")),
                     String.format("%.2f", rs.getDouble("total_net")),
-                    rs.getString("status")
+                    rs.getString("status"),
+                    String.format("%.2f", rs.getDouble("total_housing_levy")) // appended, not inserted
                 };
             }
         } catch (Exception e) { e.printStackTrace(); }

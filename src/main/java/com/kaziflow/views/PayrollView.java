@@ -46,7 +46,7 @@ public class PayrollView {
         VBox titleBlock = new VBox(2);
         Label title = new Label("💵  Payroll");
         title.setStyle("-fx-font-size:20px;-fx-font-weight:bold;-fx-text-fill:#1e293b;");
-        Label sub = new Label("Kenya statutory deductions — PAYE · NSSF · NHIF · NITA");
+        Label sub = new Label("Kenya statutory deductions — PAYE · NSSF · SHIF · Housing Levy · NITA");
         sub.setStyle("-fx-font-size:12px;-fx-text-fill:#64748b;");
         titleBlock.getChildren().addAll(title, sub);
 
@@ -172,7 +172,7 @@ public class PayrollView {
         Label reminder = new Label(
             "📅  KRA PAYE deadline: 9th of following month  |  " +
             "NSSF deadline: 9th of following month  |  " +
-            "NHIF deadline: 9th of following month");
+            "SHIF deadline: 9th of following month");
         reminder.setStyle("-fx-background-color:#fef3c7;-fx-text-fill:#92400e;-fx-font-size:12px;" +
             "-fx-padding:10 24;-fx-font-weight:bold;");
         reminder.setMaxWidth(Double.MAX_VALUE);
@@ -212,7 +212,8 @@ public class PayrollView {
                 summaryItem("Total Gross","KES " + KESFormatter.format(Double.parseDouble(run[4]))),
                 summaryItem("Total PAYE", "KES " + KESFormatter.format(Double.parseDouble(run[7]))),
                 summaryItem("Total NSSF", "KES " + KESFormatter.format(Double.parseDouble(run[5]))),
-                summaryItem("Total NHIF", "KES " + KESFormatter.format(Double.parseDouble(run[6]))),
+                summaryItem("Total SHIF", "KES " + KESFormatter.format(Double.parseDouble(run[6]))),
+                summaryItem("Housing Levy", "KES " + KESFormatter.format(run.length > 11 ? Double.parseDouble(run[11]) : 0)),
                 summaryItem("Total Net",  "KES " + KESFormatter.format(Double.parseDouble(run[9])))
             );
             layout.getChildren().add(summary);
@@ -225,15 +226,15 @@ public class PayrollView {
         tv.setStyle("-fx-background-color:white;");
         VBox.setVgrow(tv, Priority.ALWAYS);
 
-        String[] headers = {"#", "Name", "Dept", "Gross", "NSSF", "NHIF", "PAYE", "NITA", "Deductions", "Net Pay"};
-        int[] idxs = {1, 2, 3, 5, 6, 7, 8, 9, 10, 11};
+        String[] headers = {"#", "Name", "Dept", "Gross", "NSSF", "SHIF", "PAYE", "NITA", "Housing Levy", "Deductions", "Net Pay"};
+        int[] idxs = {1, 2, 3, 5, 6, 7, 8, 9, 12, 10, 11}; // 12 = housing_levy, appended at the end of getEntries()'s array
         for (int i = 0; i < headers.length; i++) {
             final int ci = idxs[i];
             TableColumn<String[], String> col = new TableColumn<>(headers[i]);
             col.setCellValueFactory(d ->
                 new javafx.beans.property.SimpleStringProperty(
                     ci < d.getValue().length ? d.getValue()[ci] : ""));
-            if (i == 9) col.setStyle("-fx-font-weight:bold;");
+            if (i == 10) col.setStyle("-fx-font-weight:bold;"); // "Net Pay" is now at index 10, not 9, after Housing Levy was inserted
             tv.getColumns().add(col);
         }
 
@@ -288,9 +289,12 @@ public class PayrollView {
         sb.append(String.format("%-28s KES %10s\n", "Gross Salary",     entry[5]));
         sb.append("                      DEDUCTIONS\n");
         sb.append(String.format("%-28s KES %10s\n", "NSSF (Employee)",  entry[6]));
-        sb.append(String.format("%-28s KES %10s\n", "NHIF",            entry[7]));
+        sb.append(String.format("%-28s KES %10s\n", "SHIF",            entry[7]));
         sb.append(String.format("%-28s KES %10s\n", "PAYE",            entry[8]));
         sb.append(String.format("%-28s KES %10s\n", "NITA",            entry[9]));
+        if (entry.length > 12) {
+            sb.append(String.format("%-28s KES %10s\n", "Housing Levy",    entry[12]));
+        }
         sb.append("------------------------------------------------\n");
         sb.append(String.format("%-28s KES %10s\n", "Total Deductions", entry[10]));
         sb.append(String.format("%-28s KES %10s\n", "NET PAY",         entry[11]));
@@ -320,10 +324,11 @@ public class PayrollView {
 
     private void exportCSV(List<String[]> entries, String runNum) {
         StringBuilder csv = new StringBuilder();
-        csv.append("Emp#,Name,Department,Position,Gross,NSSF,NHIF,PAYE,NITA,Deductions,NetPay\n");
+        csv.append("Emp#,Name,Department,Position,Gross,NSSF,SHIF,PAYE,NITA,HousingLevy,Deductions,NetPay\n");
         for (String[] e : entries) {
+            String housingLevy = e.length > 12 ? e[12] : "0.00";
             csv.append(String.join(",", e[1], e[2], e[3], e[4],
-                e[5], e[6], e[7], e[8], e[9], e[10], e[11])).append("\n");
+                e[5], e[6], e[7], e[8], e[9], housingLevy, e[10], e[11])).append("\n");
         }
         javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
         fc.setTitle("Save Payroll CSV");
@@ -346,7 +351,7 @@ public class PayrollView {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
             "Run payroll for " + monthStr + "?\n" +
             "This will calculate salaries for all active employees\n" +
-            "with PAYE, NSSF, NHIF, and NITA deductions.",
+            "with PAYE, NSSF, SHIF, Housing Levy, and NITA deductions.",
             ButtonType.YES, ButtonType.NO);
         confirm.setHeaderText("Confirm Payroll Run");
         confirm.showAndWait().ifPresent(r -> {
