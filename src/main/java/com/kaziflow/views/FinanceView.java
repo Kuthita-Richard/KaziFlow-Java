@@ -78,12 +78,26 @@ public class FinanceView {
         double rev = transDAO.getTotalRevenue();
         double exp = transDAO.getTotalExpenses();
         double net = rev - exp;
+        double vatPayable = transDAO.getNetVATPayable();
+
+        // Real month-over-month comparison, not a fabricated "+23%" placeholder.
+        java.time.LocalDate today = java.time.LocalDate.now();
+        double thisMonthRev = new com.kaziflow.dao.SaleDAO().getMonthRevenue(today.getYear(), today.getMonthValue());
+        java.time.LocalDate lastMonth = today.minusMonths(1);
+        double lastMonthRev = new com.kaziflow.dao.SaleDAO().getMonthRevenue(lastMonth.getYear(), lastMonth.getMonthValue());
+        String revChangeText;
+        if (lastMonthRev > 0) {
+            double pctChange = ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100.0;
+            revChangeText = (pctChange >= 0 ? "↑ +" : "↓ ") + String.format("%.0f", pctChange) + "% vs last month";
+        } else {
+            revChangeText = thisMonthRev > 0 ? "No sales last month to compare" : "No sales yet this month";
+        }
 
         HBox stats = statsRow(
-            statCard("Total Revenue",  KESFormatter.formatShort(rev),      "+23% vs last month", "#1e293b"),
+            statCard("Total Revenue",  KESFormatter.formatShort(rev),      revChangeText,        "#1e293b"),
             statCard("Total Expenses", KESFormatter.formatShort(exp),      "Operating costs",    "#dc2626"),
             statCard("Net Cash Flow",  KESFormatter.formatShort(net),      "↑ Current period",   "#16a34a"),
-            statCard("VAT Liability",  KESFormatter.formatShort(rev*0.16), "16% VAT due",        "#d97706")
+            statCard("VAT Liability",  KESFormatter.formatShort(vatPayable), "Net payable to KRA", "#d97706")
         );
 
         HBox mainRow = new HBox(20);
@@ -96,14 +110,22 @@ public class FinanceView {
         acctCard.setPadding(new Insets(20));
         acctCard.getChildren().add(acctTitle);
 
+        // Real figures from actual data, not arbitrary percentages of revenue/expenses.
+        // "Cash & Bank" is the one exception worth being upfront about: this app doesn't track
+        // a running bank-account ledger separate from revenue/expense totals, so net cash flow
+        // (revenue minus expenses) is the best available proxy, not a precise bank balance.
+        double accountsReceivable = new com.kaziflow.dao.DeniDAO().getTotalOutstanding();
+        double inventoryValue = new com.kaziflow.dao.ProductDAO().getTotalStockValue();
+        double accountsPayable = new com.kaziflow.dao.PurchaseDAO().getTotalOutstanding();
+
         Object[][] accounts = {
             {"ASSETS",               "",              "section"},
-            {"  Cash & Bank",        rev*0.45,        "asset"},
-            {"  Accounts Receivable",rev*0.12,        "asset"},
-            {"  Inventory Value",    rev*0.97,        "asset"},
+            {"  Cash & Bank (est. from net cash flow)", net, "asset"},
+            {"  Accounts Receivable (Deni Book)",accountsReceivable, "asset"},
+            {"  Inventory Value",    inventoryValue,  "asset"},
             {"LIABILITIES",          "",              "section"},
-            {"  Accounts Payable",   exp*0.19,        "liab"},
-            {"  VAT Payable",        rev*0.16,        "liab"},
+            {"  Accounts Payable (unpaid purchases)", accountsPayable, "liab"},
+            {"  VAT Payable",        vatPayable,      "liab"},
             {"EQUITY",               "",              "section"},
             {"  Total Revenue",      rev,             "income"},
             {"  Total Expenses",     exp,             "expense"},
@@ -381,15 +403,17 @@ public class FinanceView {
 
     private VBox buildVatBody() {
         VBox content = new VBox(20); content.setPadding(new Insets(24));
-        double rev = transDAO.getTotalRevenue();
-        double exp = transDAO.getTotalExpenses();
-        double vatOut = rev * 0.16;
-        double vatIn  = exp * 0.16;
-        double net    = vatOut - vatIn;
+        // Real summed VAT — not an approximation. The old version computed vatOut as 16% of
+        // total revenue (which already includes VAT, so that double-counted it) and vatIn as
+        // 16% of general expenses (the wrong basis entirely — input VAT comes from purchases,
+        // which already track their own real vat_amount per line, not from rent/utilities/etc).
+        double vatOut = transDAO.getTotalOutputVAT();
+        double vatIn  = transDAO.getTotalInputVAT();
+        double net    = transDAO.getNetVATPayable();
 
         HBox stats = statsRow(
-            statCard("Output VAT (Sales)",    KESFormatter.formatShort(vatOut), "16% on sales",     "#1e293b"),
-            statCard("Input VAT (Purchases)", KESFormatter.formatShort(vatIn),  "16% on purchases", "#1e293b"),
+            statCard("Output VAT (Sales)",    KESFormatter.formatShort(vatOut), "Actual VAT charged",     "#1e293b"),
+            statCard("Input VAT (Purchases)", KESFormatter.formatShort(vatIn),  "Actual VAT paid, reclaimable", "#1e293b"),
             statCard("Net VAT Payable",       KESFormatter.formatShort(net),    "Payable to KRA",   "#dc2626"),
             statCard("VAT Rate",              "16%",                            "Standard rate",    "#2563eb")
         );

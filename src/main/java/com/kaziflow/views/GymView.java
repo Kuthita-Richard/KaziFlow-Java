@@ -113,7 +113,10 @@ public class GymView {
             });
             filterBar.getChildren().add(btn);
         }
-        tg.selectedToggleProperty().addListener((obs, oldT, newT) -> { if (newT == null && oldT != null) tg.selectToggle(oldT); }); searchF.setPromptText("Search by name, member no, phone...");
+        tg.selectedToggleProperty().addListener((obs, oldT, newT) -> { if (newT == null && oldT != null) tg.selectToggle(oldT); });
+
+        TextField searchF = new TextField();
+        searchF.setPromptText("Search by name, member no, phone...");
         searchF.setPrefWidth(260); searchF.setStyle("-fx-pref-height:32px;-fx-background-color:#f8fafc;-fx-border-color:#e2e8f0;-fx-border-radius:8;-fx-background-radius:8;-fx-font-size:12px;-fx-padding:0 10;");
         searchF.textProperty().addListener((obs,old,val) -> {
             if (val.isBlank()) loadMembers();

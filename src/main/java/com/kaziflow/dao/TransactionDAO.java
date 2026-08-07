@@ -70,6 +70,33 @@ public class TransactionDAO {
         return 0;
     }
 
+    /** Real output VAT — the actual sum of vat_amount already charged on completed sales, not an approximation. */
+    public double getTotalOutputVAT() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT COALESCE(SUM(vat_amount),0) FROM sales WHERE status='completed'");
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /** Real input VAT — the actual sum of vat_amount already paid on purchases, reclaimable against output VAT. */
+    public double getTotalInputVAT() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT COALESCE(SUM(vat_amount),0) FROM purchases");
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /**
+     * Net VAT payable = output VAT (charged on sales) minus input VAT (paid on purchases,
+     * reclaimable) — standard VAT accounting, and never negative (a net input-VAT credit
+     * carries forward rather than becoming a negative liability here).
+     */
+    public double getNetVATPayable() {
+        return Math.max(getTotalOutputVAT() - getTotalInputVAT(), 0);
+    }
+
     public double getMonthRevenue() {
         try (Connection conn = getConn(); Statement s = conn.createStatement()) {
             ResultSet rs = s.executeQuery("SELECT COALESCE(SUM(total_amount),0) FROM sales WHERE strftime('%Y-%m',created_at)=strftime('%Y-%m','now') AND status='completed'");
