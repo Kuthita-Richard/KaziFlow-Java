@@ -406,7 +406,7 @@ public class NewPurchaseView {
 
     private void refreshTotals() {
         double subtotal = cartItems.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double total = subtotal + vat;
 
         subtotalLabel.setText(KESFormatter.format(subtotal));
@@ -432,7 +432,7 @@ public class NewPurchaseView {
         TextArea notes          = meta != null ? (TextArea)        meta[3] : null;
 
         double subtotal = cartItems.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double total = subtotal + vat;
 
         Purchase po = new Purchase();

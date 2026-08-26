@@ -395,7 +395,7 @@ public class AddPurchaseDialog {
 
     private void refreshTotalsOnly() {
         double subtotal = lineItems.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         subtotalLbl.setText(KESFormatter.format(subtotal));
         vatLbl.setText(KESFormatter.format(vat));
         totalLbl.setText(KESFormatter.format(subtotal + vat));
@@ -413,7 +413,7 @@ public class AddPurchaseDialog {
         }
 
         double subtotal = lineItems.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double total = subtotal + vat;
         double amountPaid = parseDouble(amountPaidField.getText());
 

@@ -230,7 +230,7 @@ public class QuotationDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) subtotal = rs.getDouble(1);
         }
-        double tax = subtotal * 0.16;
+        double tax = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double total = subtotal + tax;
         try (PreparedStatement ps = c.prepareStatement(
                 "UPDATE quotations SET subtotal=?,tax_amount=?,total=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")) {

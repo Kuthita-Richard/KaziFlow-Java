@@ -260,8 +260,12 @@ public class ReportExportService {
         double totalRevenue  = transDAO.getTotalRevenue();
         double totalExpenses = transDAO.getTotalExpenses();
         double netProfit     = totalRevenue - totalExpenses;
-        double vatOnSales    = totalRevenue * 0.16;
-        double vatOnPurchases = totalExpenses * 0.16;
+        // Real summed VAT, not totalRevenue*rate (which double-counts, since totalRevenue already
+        // includes VAT) or totalExpenses*rate (the wrong basis — input VAT comes from purchases,
+        // which already track their own real vat_amount, not from rent/utilities/etc). Same fix
+        // already applied to FinanceView's on-screen Chart of Accounts and VAT Summary page.
+        double vatOnSales     = transDAO.getTotalOutputVAT();
+        double vatOnPurchases = transDAO.getTotalInputVAT();
 
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
             pw.println("KaziFlow ERP — Finance Summary Report");

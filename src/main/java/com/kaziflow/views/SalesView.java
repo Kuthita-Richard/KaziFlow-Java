@@ -698,7 +698,7 @@ public class SalesView {
 
     private void updateTotals() {
         double subtotal = cartItems.stream().mapToDouble(SaleItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double preDiscountTotal = subtotal + vat;
 
         // If the cart shrank after points were redeemed, the discount can no longer
@@ -759,7 +759,7 @@ public class SalesView {
         }
 
         double subtotal = cartItems.stream().mapToDouble(SaleItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double preDiscountTotal = subtotal + vat;
         if (redeemedDiscount > preDiscountTotal) { redeemedDiscount = preDiscountTotal; redeemedPoints = (int) redeemedDiscount; }
         double total = preDiscountTotal - redeemedDiscount + (deliveryCharge != null ? deliveryCharge : 0);
@@ -930,7 +930,7 @@ public class SalesView {
                 // subtotal+VAT here so this matches updateTotals()'s own safety cap exactly, rather
                 // than relying on that second cap to silently correct a more permissive number here.
                 double subtotal = cartItems.stream().mapToDouble(SaleItem::getLineTotal).sum();
-                double goodsTotal = subtotal * 1.16;
+                double goodsTotal = subtotal * (1 + com.kaziflow.services.VATConfig.getInstance().getRate());
                 double cappedDiscount = Math.min(requested, goodsTotal);
                 redeemedPoints = (int) cappedDiscount;
                 redeemedDiscount = cappedDiscount;

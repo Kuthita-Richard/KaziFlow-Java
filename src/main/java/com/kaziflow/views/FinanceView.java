@@ -437,8 +437,11 @@ public class FinanceView {
             String label = d.getMonth().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH) + " " + yr;
             double mRev = transDAO.getRevenueForMonth(yr, mo);
             double mExp = transDAO.getExpensesForMonth(yr, mo);
-            double mOut = mRev * 0.16;
-            double mIn  = mExp * 0.16;
+            // Real per-month summed VAT, not mRev*rate/mExp*rate — same fix as the double-counting
+            // and wrong-basis bugs already found and fixed elsewhere in this file and in
+            // ReportExportService's CSV export.
+            double mOut = transDAO.getOutputVATForMonth(yr, mo);
+            double mIn  = transDAO.getInputVATForMonth(yr, mo);
             double mNet = mOut - mIn;
             boolean isFiled = i >= 2;
             HBox row = new HBox(); row.setAlignment(Pos.CENTER_LEFT);

@@ -284,7 +284,7 @@ public class QuotationView {
         Runnable recalc = () -> {
             double sub = itemData.stream()
                 .mapToDouble(r -> Double.parseDouble(r[4])).sum();
-            double tax = sub * 0.16;
+            double tax = sub * com.kaziflow.services.VATConfig.getInstance().getRate();
             subtotalLbl.setText("Subtotal: KES " + KESFormatter.format(sub));
             taxLbl.setText("VAT (16%): KES " + KESFormatter.format(tax));
             totalLbl.setText("TOTAL: KES " + KESFormatter.format(sub + tax));

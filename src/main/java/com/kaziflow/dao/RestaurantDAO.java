@@ -374,7 +374,7 @@ public class RestaurantDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) subtotal = rs.getDouble(1);
         }
-        double tax = subtotal * 0.16;
+        double tax = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         try (PreparedStatement ps = c.prepareStatement(
                 "UPDATE restaurant_orders SET subtotal=?,tax=?,total=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")) {
             ps.setDouble(1, subtotal); ps.setDouble(2, tax);

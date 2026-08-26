@@ -428,8 +428,13 @@ public class SettingsView {
                 ps.executeUpdate();
                 ps.setString(1, "kra_pin"); ps.setString(2, pinField.getText().trim());
                 ps.executeUpdate();
+                // Previously this only updated the stored setting — nothing actually consulted it
+                // except the receipt's display text, so changing it here had no effect on real
+                // totals. VATConfig.reload() plus the sitewide rewiring (v11.20) is what makes
+                // this genuinely take effect now.
+                com.kaziflow.services.VATConfig.getInstance().reload();
                 com.kaziflow.utils.Toast.success(com.kaziflow.utils.SceneManager.getInstance().getStage(),
-                    "Saved", "Tax settings updated");
+                    "Saved", "Tax settings updated — this rate now applies to every new sale, quotation, and restaurant order immediately.");
             } catch (Exception ex) {
                 com.kaziflow.utils.Toast.error(com.kaziflow.utils.SceneManager.getInstance().getStage(),
                     "Error", ex.getMessage());

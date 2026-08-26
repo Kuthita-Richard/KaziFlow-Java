@@ -161,6 +161,30 @@ public class TransactionDAO {
         return 0;
     }
 
+    /** Real output VAT for a specific month — actual summed vat_amount from that month's sales, not an approximation. */
+    public double getOutputVATForMonth(int year, int month) {
+        String ym = String.format("%04d-%02d", year, month);
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement(
+                "SELECT COALESCE(SUM(vat_amount),0) FROM sales WHERE strftime('%Y-%m',created_at)=? AND status='completed'")) {
+            ps.setString(1, ym);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /** Real input VAT for a specific month — actual summed vat_amount from that month's purchases. */
+    public double getInputVATForMonth(int year, int month) {
+        String ym = String.format("%04d-%02d", year, month);
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement(
+                "SELECT COALESCE(SUM(vat_amount),0) FROM purchases WHERE strftime('%Y-%m',created_at)=?")) {
+            ps.setString(1, ym);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getDouble(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
     private Transaction mapRow(ResultSet rs) throws SQLException {
         Transaction t = new Transaction();
         t.setId(rs.getInt("id"));

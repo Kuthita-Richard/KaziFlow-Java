@@ -463,7 +463,7 @@ public class PurchaseOrderView extends VBox {
         // Set items
         List<PurchaseItem> items = new ArrayList<>(lineItems);
         double subtotal = items.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         p.setSubtotal(subtotal);
         p.setVatAmount(vat);
         p.setTotalAmount(subtotal + vat);
@@ -498,7 +498,7 @@ public class PurchaseOrderView extends VBox {
 
     private void refreshTotals() {
         double subtotal = lineItems.stream().mapToDouble(PurchaseItem::getLineTotal).sum();
-        double vat = subtotal * 0.16;
+        double vat = subtotal * com.kaziflow.services.VATConfig.getInstance().getRate();
         double total = subtotal + vat;
         subtotalLabel.setText(KESFormatter.format(subtotal));
         vatLabel.setText(KESFormatter.format(vat));

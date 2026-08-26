@@ -55,7 +55,11 @@ public class ReceiptPrinter {
         String footer       = settings.getOrDefault("receipt_footer", "Thank you for your business!");
         String paybill      = settings.getOrDefault("mpesa_paybill", "");
         String till         = settings.getOrDefault("mpesa_till_number", "");
-        double vatRate      = Double.parseDouble(settings.getOrDefault("vat_rate", "16"));
+        // Routed through VATConfig (not parsed inline from the settings map) so this also
+        // respects the VAT-enabled toggle, and so there's exactly one source of truth for the
+        // rate across the whole app — previously this was the only place vat_rate was actually
+        // read; every calculation site hardcoded 16% directly, which VATConfig now fixes too.
+        double vatRate      = com.kaziflow.services.VATConfig.getInstance().getRatePercent();
 
         // ── Header ──
         sb.append(center("★ " + businessName + " ★")).append("\n");
