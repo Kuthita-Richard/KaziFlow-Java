@@ -366,6 +366,7 @@ public class AIAssistantView {
 
     private void showApiKeyDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("AI Assistant — API Key");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

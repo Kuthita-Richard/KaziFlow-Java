@@ -380,6 +380,7 @@ public class AttendanceView {
     // ─── Record Dialog ────────────────────────────────────────────────────
     private void showRecordDialog(AttendanceRecord existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null || existing.id <= 0 ? "Record Attendance" : "Edit Attendance");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

@@ -299,6 +299,7 @@ public class EmployeesView {
 
     private void showRecordAttendanceDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Record Attendance"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(460);
 
@@ -493,6 +494,7 @@ public class EmployeesView {
 
     private void showApplyLeaveDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Apply for Leave"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(460);
 
@@ -555,6 +557,7 @@ public class EmployeesView {
 
     private void showAddEditDialog(Employee existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing==null?"Add Employee":"Edit Employee"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(480);
 

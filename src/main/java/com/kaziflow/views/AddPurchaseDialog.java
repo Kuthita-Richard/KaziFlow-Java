@@ -261,6 +261,7 @@ public class AddPurchaseDialog {
 
     private void showAddItemDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Add Item");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
@@ -499,6 +500,7 @@ public class AddPurchaseDialog {
 
     private void showValidationError(String msg) {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setTitle("Validation Error"); a.setHeaderText(null); a.show();
     }
 }

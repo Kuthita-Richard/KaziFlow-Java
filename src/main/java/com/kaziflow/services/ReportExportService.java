@@ -318,11 +318,13 @@ public class ReportExportService {
 
     private void showSuccess(String title, String path) {
         Alert a = new Alert(Alert.AlertType.INFORMATION, "Report saved to:\n" + path, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setTitle(title); a.setHeaderText(null); a.show();
     }
 
     private void showError(String msg) {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setTitle("Export Error"); a.setHeaderText(null); a.show();
     }
 }

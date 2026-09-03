@@ -316,6 +316,7 @@ public class SalesHistoryView {
         if ("refunded".equals(full.getStatus())) refundBtn.setDisable(true);
         refundBtn.setOnAction(e -> {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Refund " + full.getSaleNumber() + "?\nKES " + KESFormatter.format(full.getTotalAmount()) + " will be reversed.", ButtonType.YES, ButtonType.NO);
+            com.kaziflow.utils.DialogUtils.makeResizable(confirm);
             confirm.setHeaderText(null); confirm.setTitle("Confirm Refund");
             confirm.showAndWait().ifPresent(btn -> { if (btn == ButtonType.YES) { stage.close(); loadData(); }});
         });

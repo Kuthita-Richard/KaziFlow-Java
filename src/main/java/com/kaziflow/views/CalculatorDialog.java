@@ -32,6 +32,7 @@ public class CalculatorDialog {
 
     private void build(Stage owner) {
         Dialog<Void> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Calculator");
         dialog.initOwner(owner);
         dialog.getDialogPane().setStyle("-fx-background-color: #f8fafc;");

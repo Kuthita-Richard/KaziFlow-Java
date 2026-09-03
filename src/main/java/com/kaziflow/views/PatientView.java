@@ -194,6 +194,7 @@ public class PatientView {
 
     private void showRegisterDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Register New Patient");
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
         dialog.getDialogPane().setPrefWidth(520);
@@ -272,6 +273,7 @@ public class PatientView {
 
     private void showPatientRecords(int patientId, String patientName, String mrn) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Records — " + patientName + " (" + mrn + ")");
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
         dialog.getDialogPane().setPrefWidth(800);
@@ -328,6 +330,7 @@ public class PatientView {
 
     private void showNewEncounterDialog(int patientId, String patientName) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("New Visit — " + patientName);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
         dialog.getDialogPane().setPrefWidth(540);

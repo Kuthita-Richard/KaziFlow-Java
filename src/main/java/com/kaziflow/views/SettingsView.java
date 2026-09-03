@@ -295,6 +295,7 @@ public class SettingsView {
                 // Access AIService directly — no need to build the full UI panel
                 com.kaziflow.services.AIService ai = com.kaziflow.services.AIService.getInstance();
                 Dialog<ButtonType> dialog = new Dialog<>();
+                com.kaziflow.utils.DialogUtils.makeResizable(dialog);
                 dialog.setTitle("AI Assistant — API Key Setup");
                 dialog.setHeaderText(null);
                 dialog.getDialogPane().setStyle("-fx-background-color:white;");
@@ -356,6 +357,7 @@ public class SettingsView {
 
     private void showRolesDialog() {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Roles & Permissions");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(520); d.getDialogPane().setPrefHeight(400);
@@ -392,6 +394,7 @@ public class SettingsView {
 
     private void showTaxSettingsDialog() {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Tax Settings");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(420);
@@ -453,6 +456,7 @@ public class SettingsView {
         com.kaziflow.services.PayrollTaxConfig cfg = com.kaziflow.services.PayrollTaxConfig.getInstance();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Payroll Tax Settings");
         d.getDialogPane().setPrefWidth(560);
 
@@ -571,6 +575,7 @@ public class SettingsView {
         com.kaziflow.services.CurrencyService currency = com.kaziflow.services.CurrencyService.getInstance();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Currency Settings");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(440);
@@ -619,6 +624,7 @@ public class SettingsView {
         com.kaziflow.services.EmailService email = com.kaziflow.services.EmailService.getInstance();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Email Receipts — SMTP Settings");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(440);
@@ -701,6 +707,7 @@ public class SettingsView {
         com.kaziflow.network.NetworkConfig net = com.kaziflow.network.NetworkConfig.getInstance();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Network / Multi-Computer Settings");
         d.getDialogPane().setPrefWidth(480);
         VBox root = new VBox(14);
@@ -829,6 +836,7 @@ public class SettingsView {
         java.util.Set<String> currentlyEnabled = registry.getEnabledModuleIds();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("System Modules");
         d.getDialogPane().setPrefWidth(480);
 
@@ -884,6 +892,7 @@ public class SettingsView {
 
     private void showAuditTrailDialog() {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Audit Trail — Recent Activity");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(700); d.getDialogPane().setPrefHeight(500);
@@ -909,6 +918,7 @@ public class SettingsView {
                             "Chain Intact", "All audit entries verified — no tampering detected.");
                     } else {
                         Alert alert = new Alert(Alert.AlertType.WARNING);
+                        com.kaziflow.utils.DialogUtils.makeResizable(alert);
                         alert.setTitle("Audit Trail Integrity Issue");
                         alert.setHeaderText(breaks.size() + " problem(s) found in the audit chain:");
                         alert.getDialogPane().setContent(new javafx.scene.control.TextArea(String.join("\n\n", breaks)) {{
@@ -961,6 +971,7 @@ public class SettingsView {
     private void showLanguageDialog() {
         com.kaziflow.utils.I18n i18n = com.kaziflow.utils.I18n.getInstance();
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Language / Lugha");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(380);
@@ -1010,6 +1021,7 @@ public class SettingsView {
 
     private void showLicenseDialog() {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("License — KaziFlow ERP");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(560);
@@ -1031,6 +1043,7 @@ public class SettingsView {
         boolean enabled = enc.isEncryptionEnabled(dbPath);
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Database Encryption — AES-256-GCM");
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(460);
@@ -1099,6 +1112,7 @@ public class SettingsView {
 
     private void showMpesaConfigDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("M-Pesa Integration Configuration"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(460);
 
@@ -1146,6 +1160,7 @@ public class SettingsView {
 
     private void showSmsConfigDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("SMS Integration — Africa's Talking"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(460);
 
@@ -1243,6 +1258,7 @@ public class SettingsView {
 
     private void showEditBusinessDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Edit Business Details");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

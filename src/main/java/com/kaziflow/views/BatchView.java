@@ -335,6 +335,7 @@ public class BatchView {
 
     private void showAddBatchDialog(Integer preselectedProductId) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Add Batch / Stock Intake");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
@@ -466,6 +467,7 @@ public class BatchView {
         List<String[]> batches = batchDAO.getBatchesForProduct(productId);
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Batches for: " + productName);
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

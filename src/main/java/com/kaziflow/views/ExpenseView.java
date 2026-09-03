@@ -187,6 +187,7 @@ public class ExpenseView {
                 delBtn.setOnAction(e -> {
                     Expense exp = getTableView().getItems().get(getIndex());
                     Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete this expense?", ButtonType.YES, ButtonType.NO);
+                    com.kaziflow.utils.DialogUtils.makeResizable(confirm);
                     confirm.setHeaderText(null);
                     confirm.showAndWait().ifPresent(btn -> { if (btn == ButtonType.YES) { expenseDAO.delete(exp.getId()); loadData(); } });
                 });
@@ -256,6 +257,7 @@ public class ExpenseView {
 
     private void showAddDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Record New Expense");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

@@ -378,6 +378,7 @@ public class DashboardView {
     private void showDayDrillThrough(String date) {
         List<Sale> daySales = saleDAO.findByDateRange(date, date);
         Dialog<Void> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Sales on " + date);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.getDialogPane().setPrefWidth(480);

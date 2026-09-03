@@ -205,6 +205,7 @@ public class RestaurantView {
         } else if ("occupied".equals(status)) {
             // Show order options
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            com.kaziflow.utils.DialogUtils.makeResizable(alert);
             alert.setTitle("Table " + tbl[1]);
             alert.setHeaderText("Table " + tbl[1] + " — " + tbl[5] + " — KES " + tbl[6]);
             alert.setContentText("What would you like to do?");
@@ -228,6 +229,7 @@ public class RestaurantView {
 
     private void openOrderDialog(int tableId, String tableNo, String orderType) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Order — " + tableNo);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
         dialog.getDialogPane().setPrefWidth(720);
@@ -395,6 +397,7 @@ public class RestaurantView {
     private void showBillDialog(String orderNo, int tableId) {
         if (orderNo.isEmpty()) return;
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        com.kaziflow.utils.DialogUtils.makeResizable(alert);
         alert.setTitle("Bill — " + orderNo);
         alert.setHeaderText("Ready to close bill for " + orderNo + "?");
         alert.setContentText("Mark order as paid and free the table?");
@@ -506,6 +509,7 @@ public class RestaurantView {
 
     private void showAddMenuItemDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Add Menu Item");
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
         dialog.getDialogPane().setPrefWidth(440);

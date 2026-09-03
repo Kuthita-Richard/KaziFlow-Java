@@ -184,6 +184,7 @@ public class QuotationView {
 
     private void showQuotationBuilder(String[] existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null ? "New Quotation" : "Quotation " + existing[1]);
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
@@ -393,6 +394,7 @@ public class QuotationView {
         ta.setPrefHeight(500);
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Quotation " + q[1]);
         d.getDialogPane().setContent(ta);
         d.getDialogPane().getButtonTypes().addAll(
@@ -441,6 +443,7 @@ public class QuotationView {
         }
 
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, msg.toString(), ButtonType.YES, ButtonType.NO);
+        com.kaziflow.utils.DialogUtils.makeResizable(confirm);
         confirm.setHeaderText("Convert to Sale");
         confirm.showAndWait().ifPresent(r -> {
             if (r != ButtonType.YES) return;

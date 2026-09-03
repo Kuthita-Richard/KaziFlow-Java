@@ -357,6 +357,7 @@ public class InventoryView {
 
     private void showAddEditDialog(Product existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null ? "Add New Product" : "Edit Product");
         dialog.setHeaderText(null);
 
@@ -433,6 +434,7 @@ public class InventoryView {
 
     private boolean confirmDelete(String name) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + name + "?", ButtonType.YES, ButtonType.NO);
+        com.kaziflow.utils.DialogUtils.makeResizable(alert);
         alert.setHeaderText(null);
         alert.setTitle("Confirm Delete");
         return alert.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
@@ -465,6 +467,7 @@ public class InventoryView {
         }
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Bulk Edit — " + visible.size() + " products");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

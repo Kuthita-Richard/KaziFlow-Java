@@ -112,6 +112,7 @@ public class BranchView {
 
     private void showBranchDialog(String[] existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null ? "Add Branch" : "Edit Branch");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
@@ -232,6 +233,7 @@ public class BranchView {
 
     private void showTransferDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("New Stock Transfer");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");

@@ -96,6 +96,7 @@ public class StockTakeView {
 
     private void startNewCount() {
         TextInputDialog notesDialog = new TextInputDialog();
+        com.kaziflow.utils.DialogUtils.makeResizable(notesDialog);
         notesDialog.setTitle("Start New Stock Take");
         notesDialog.setHeaderText("Snapshot current stock levels for every product and begin counting.");
         notesDialog.setContentText("Notes (optional):");
@@ -201,6 +202,7 @@ public class StockTakeView {
 
     private void confirmComplete(int stockTakeId) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        com.kaziflow.utils.DialogUtils.makeResizable(confirm);
         confirm.setTitle("Complete Stock Take");
         confirm.setHeaderText("Apply counted quantities to live stock?");
         confirm.setContentText("Every product with a counted quantity will have its stock level updated to match, "

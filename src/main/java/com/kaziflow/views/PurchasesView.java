@@ -202,6 +202,7 @@ public class PurchasesView {
 
     private void showAddEditSupplierDialog(Supplier existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing==null?"Add Supplier":"Edit Supplier"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(480);
 
@@ -386,6 +387,7 @@ public class PurchasesView {
 
     private void showPurchaseDetail(Purchase p) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        com.kaziflow.utils.DialogUtils.makeResizable(alert);
         alert.setTitle("Purchase Order — " + p.getPurchaseNumber());
         alert.setHeaderText("Supplier: " + p.getSupplierName() + "\nTotal: " + KESFormatter.format(p.getTotalAmount()) + "\nStatus: " + p.getStatus());
         alert.setContentText("Open the full purchase order view to see individual line items and update payment status.");
@@ -398,6 +400,7 @@ public class PurchasesView {
         ObservableList<String> lineDisplay = FXCollections.observableArrayList();
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("New Purchase Order"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(700);
 
@@ -533,6 +536,7 @@ public class PurchasesView {
             if (supplierCombo.getValue()==null||supplierCombo.getValue().isEmpty()) {ev.consume();return;}
             if (lineItems.isEmpty()) {
                 Alert err = new Alert(Alert.AlertType.WARNING,"Please add at least one product to the order.",ButtonType.OK);
+                com.kaziflow.utils.DialogUtils.makeResizable(err);
                 err.setHeaderText(null); err.show(); ev.consume();
             }
         });
@@ -676,6 +680,7 @@ public class PurchasesView {
 
     private void showPurchaseReturnDialog(VBox returnsView) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("New Purchase Return");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");

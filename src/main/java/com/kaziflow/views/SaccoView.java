@@ -87,6 +87,7 @@ public class SaccoView {
 
     private void showRegisterMemberDialog(Runnable onDone) {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Register SACCO Member");
         GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
         TextField nameF = new TextField(); nameF.setPromptText("Full name");
@@ -117,6 +118,7 @@ public class SaccoView {
         int memberId = Integer.parseInt(selected[0]);
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Savings Transaction — " + selected[2]);
         GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
         ComboBox<String> typeBox = new ComboBox<>(FXCollections.observableArrayList("deposit", "withdrawal", "share_capital"));
@@ -217,6 +219,7 @@ public class SaccoView {
         if (members.isEmpty()) { Toast.error(stage(), "No Members", "Register a SACCO member before applying for a loan."); return; }
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("New Loan Application");
         GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
 
@@ -262,6 +265,7 @@ public class SaccoView {
 
     private void showScheduleDialog(int loanId, String loanNumber) {
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Repayment Schedule — " + loanNumber);
         d.getDialogPane().setPrefWidth(680);
 
@@ -284,6 +288,7 @@ public class SaccoView {
             Object[] selected = table.getSelectionModel().getSelectedItem();
             if (selected == null) { Toast.error(stage(), "No Installment Selected", "Select an installment row first."); return; }
             TextInputDialog amtDialog = new TextInputDialog(String.valueOf(selected[5]));
+            com.kaziflow.utils.DialogUtils.makeResizable(amtDialog);
             amtDialog.setTitle("Record Payment");
             amtDialog.setHeaderText("Total due: " + KESFormatter.format((double) selected[5]));
             amtDialog.setContentText("Amount paid:");
@@ -378,6 +383,7 @@ public class SaccoView {
 
         newGroupBtn.setOnAction(e -> {
             Dialog<ButtonType> d = new Dialog<>();
+            com.kaziflow.utils.DialogUtils.makeResizable(d);
             d.setTitle("New Merry-Go-Round Group");
             GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
             TextField nameF = new TextField(); nameF.setPromptText("Group name");

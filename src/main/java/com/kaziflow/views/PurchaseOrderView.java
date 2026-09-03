@@ -523,6 +523,7 @@ public class PurchaseOrderView extends VBox {
 
     private void showError(String msg) {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setHeaderText(null); a.setTitle("Validation Error"); a.show();
     }
 

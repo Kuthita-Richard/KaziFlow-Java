@@ -193,6 +193,7 @@ public class PayrollView {
         }
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Payslips — " + runNum + " (" + period + ")");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
@@ -306,6 +307,7 @@ public class PayrollView {
         ta.setEditable(false); ta.setPrefSize(460, 400);
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Payslip — " + entry[2]);
         d.getDialogPane().setContent(ta);
         d.getDialogPane().getButtonTypes().addAll(

@@ -163,6 +163,7 @@ public class BackupService {
     private void showSuccess(String msg) {
         Platform.runLater(() -> {
             Alert a = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+            com.kaziflow.utils.DialogUtils.makeResizable(a);
             a.setTitle("Backup"); a.setHeaderText(null); a.show();
         });
     }
@@ -170,6 +171,7 @@ public class BackupService {
     private void showError(String msg) {
         Platform.runLater(() -> {
             Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+            com.kaziflow.utils.DialogUtils.makeResizable(a);
             a.setTitle("Backup Error"); a.setHeaderText(null); a.show();
         });
     }

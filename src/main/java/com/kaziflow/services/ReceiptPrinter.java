@@ -147,6 +147,7 @@ public class ReceiptPrinter {
         String receipt = generateReceipt(sale);
 
         Alert dialog = new Alert(Alert.AlertType.NONE);
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Receipt - " + sale.getSaleNumber());
         dialog.setHeaderText(null);
         dialog.getButtonTypes().addAll(
@@ -410,11 +411,13 @@ public class ReceiptPrinter {
 
     private void showInfo(String title, String msg) {
         Alert a = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setTitle(title); a.setHeaderText(null); a.show();
     }
 
     private void showError(String msg) {
         Alert a = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setTitle("Error"); a.setHeaderText(null); a.show();
     }
 }

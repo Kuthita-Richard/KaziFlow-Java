@@ -325,6 +325,7 @@ public class FinanceView {
 
     private void showAddExpenseDialog() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Add Expense"); dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;"); dialog.getDialogPane().setPrefWidth(480);
 

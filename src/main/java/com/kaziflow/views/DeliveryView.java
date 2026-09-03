@@ -77,6 +77,7 @@ public class DeliveryView {
 
         assignBtn.setOnAction(e -> withSelected(table, "pending", d -> {
             Dialog<ButtonType> dlg = new Dialog<>();
+            com.kaziflow.utils.DialogUtils.makeResizable(dlg);
             dlg.setTitle("Assign Rider — " + d[1]);
             GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
             TextField riderF = new TextField(); riderF.setPromptText("Rider name");
@@ -147,6 +148,7 @@ public class DeliveryView {
 
         addBtn.setOnAction(e -> {
             Dialog<ButtonType> d = new Dialog<>();
+            com.kaziflow.utils.DialogUtils.makeResizable(d);
             d.setTitle("New Named Location");
             GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new Insets(20));
             TextField nameF = new TextField(); nameF.setPromptText("e.g. Kiambu Town");

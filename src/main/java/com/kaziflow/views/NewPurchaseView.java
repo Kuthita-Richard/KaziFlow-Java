@@ -496,6 +496,7 @@ public class NewPurchaseView {
 
     private void showError(String msg) {
         Alert a = new Alert(Alert.AlertType.WARNING, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
         a.setHeaderText(null); a.setTitle("Validation"); a.show();
     }
 }

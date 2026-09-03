@@ -915,6 +915,7 @@ public class SalesView {
         }
 
         TextInputDialog dialog = new TextInputDialog();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Redeem Loyalty Points");
         dialog.setHeaderText("Available balance: " + available + " points (" + KESFormatter.format(available) + " value)");
         dialog.setContentText("Points to redeem (1 point = KES 1 discount):");
@@ -948,6 +949,7 @@ public class SalesView {
         List<String[]> locations = deliveryDAO.findAllLocations();
 
         Dialog<ButtonType> d = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(d);
         d.setTitle("Add Delivery");
         GridPane f = new GridPane(); f.setHgap(12); f.setVgap(12); f.setPadding(new javafx.geometry.Insets(20));
 
@@ -1147,6 +1149,7 @@ public class SalesView {
 
     private void showCustomerDialog(String[] existing, TableView<String[]> tv, com.kaziflow.dao.CustomerDAO dao) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null ? "Add Customer" : "Edit Customer");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color:white;");
@@ -1193,6 +1196,7 @@ public class SalesView {
 
     private void showAlert(String title, String msg) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(alert);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.showAndWait();
@@ -1206,6 +1210,7 @@ public class SalesView {
         }
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Process Return — " + sale.getSaleNumber());
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");

@@ -287,6 +287,7 @@ public class UserManagementView {
 
     private void showAddEditDialog(User existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle(existing == null ? "Add New User" : "Edit User");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
@@ -346,6 +347,7 @@ public class UserManagementView {
 
     private void showChangePasswordDialog(User user) {
         Dialog<ButtonType> dialog = new Dialog<>();
+        com.kaziflow.utils.DialogUtils.makeResizable(dialog);
         dialog.setTitle("Change Password — " + user.getName());
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
@@ -364,14 +366,17 @@ public class UserManagementView {
             if (result == ButtonType.OK) {
                 if (!newPw.getText().equals(confirmPw.getText())) {
                     Alert err = new Alert(Alert.AlertType.ERROR, "Passwords do not match.", ButtonType.OK);
+                    com.kaziflow.utils.DialogUtils.makeResizable(err);
                     err.setHeaderText(null); err.show(); return;
                 }
                 if (newPw.getText().length() < 6) {
                     Alert err = new Alert(Alert.AlertType.ERROR, "Password must be at least 6 characters.", ButtonType.OK);
+                    com.kaziflow.utils.DialogUtils.makeResizable(err);
                     err.setHeaderText(null); err.show(); return;
                 }
                 if (userDAO.updatePassword(user.getId(), newPw.getText())) {
                     Alert ok = new Alert(Alert.AlertType.INFORMATION, "Password changed successfully.", ButtonType.OK);
+                    com.kaziflow.utils.DialogUtils.makeResizable(ok);
                     ok.setHeaderText(null); ok.show();
                 }
             }

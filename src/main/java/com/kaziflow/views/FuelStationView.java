@@ -179,6 +179,7 @@ public class FuelStationView {
         String[] open=dao.getOpenShift();
         if(open!=null){
             Alert a=new Alert(Alert.AlertType.CONFIRMATION,"Close shift "+open[1]+" for "+open[2]+"?",ButtonType.YES,ButtonType.NO);
+            com.kaziflow.utils.DialogUtils.makeResizable(a);
             a.setHeaderText("Close Shift"); a.showAndWait().ifPresent(r->{
                 if(r==ButtonType.YES){
                     TextInputDialog inp=new TextInputDialog("0"); inp.setTitle("Closing Cash"); inp.setHeaderText("Enter closing cash (KES):"); inp.setContentText("Amount:");

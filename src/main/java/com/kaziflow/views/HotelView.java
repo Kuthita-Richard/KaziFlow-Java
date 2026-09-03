@@ -116,6 +116,7 @@ public class HotelView {
         String status=room[6]; int roomId=Integer.parseInt(room[0]);
         if("available".equals(status)||"cleaning".equals(status)){
             Alert a=new Alert(Alert.AlertType.CONFIRMATION,"Room "+room[1]+" — "+room[2]+"\nRate: KES "+room[5]+"/night\n\nNew reservation?",ButtonType.YES,ButtonType.NO);
+            com.kaziflow.utils.DialogUtils.makeResizable(a);
             a.setHeaderText("Room "+room[1]);
             a.showAndWait().ifPresent(r->{if(r==ButtonType.YES) showReservationDialog(room);});
         } else if("occupied".equals(status)){
@@ -136,6 +137,7 @@ public class HotelView {
             dao.getReservations("reserved").stream()
                 .filter(res->res[5].equals(room[1])).findFirst().ifPresent(res->{
                     Alert a=new Alert(Alert.AlertType.CONFIRMATION,"Check in "+res[2]+"?",ButtonType.YES,ButtonType.NO);
+                    com.kaziflow.utils.DialogUtils.makeResizable(a);
                     a.setHeaderText("Room "+room[1]+" — "+res[3]);
                     a.showAndWait().ifPresent(r->{if(r==ButtonType.YES){
                         dao.checkIn(Integer.parseInt(res[0]),roomId);
