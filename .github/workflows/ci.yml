@@ -1,0 +1,52 @@
+name: CI
+
+# Runs on every push and pull request. This is deliberately the first line of
+# defense this project has had against compile errors — every single real
+# compile error found this session (a Dialog<Void> that should have been
+# Dialog<ButtonType>, a missing List/ArrayList import, a variable accidentally
+# deleted during an edit) would have been caught here automatically, before
+# ever reaching a human's `mvn javafx:run`. See docs/PROJECT_GUIDE.md §6 for
+# the full story of why this exists.
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Compile & Test (Java 21)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # GitHub-hosted runners have full Maven Central access — unlike the
+      # sandbox this project was largely built in, which could not verify
+      # JavaFX-dependent code at all. This step is the real compile check
+      # every change should pass before being considered done.
+      - name: Compile
+        run: mvn -B clean compile
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Package (fat JAR)
+        run: mvn -B package -DskipTests
+
+      - name: Upload build artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaziflow-erp-jar
+          path: target/*.jar
+          retention-days: 14

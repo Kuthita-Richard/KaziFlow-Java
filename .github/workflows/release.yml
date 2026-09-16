@@ -1,0 +1,87 @@
+name: Release Installers
+
+# Builds native installers for all three desktop platforms when a version tag
+# is pushed (e.g. `git tag v11.22 && git push --tags`), or manually via the
+# Actions tab.
+#
+# Why this matters specifically for this project: jpackage CANNOT cross-compile
+# — each platform's installer must be built ON that platform. That's exactly
+# why installer/build-windows.bat, build-macos.sh, and build-linux.sh exist as
+# three separate scripts (their own comments say so), and why shipping all
+# three previously required physical access to all three machines. A matrix
+# build on GitHub-hosted runners removes that constraint entirely.
+#
+# IMPORTANT: this workflow deliberately CALLS those existing scripts rather
+# than reimplementing their jpackage commands inline. Those scripts already
+# handle real details an inline version would miss or drift from — notably
+# the jlink step that builds a trimmed custom runtime so end users don't need
+# a JDK installed, plus icons, license file, menu/shortcut registration, and
+# app metadata. Duplicating that logic here would guarantee the two copies
+# diverge the first time either is edited.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch: {}
+
+jobs:
+  build-installers:
+    name: ${{ matrix.os-name }} installer
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false   # one platform failing shouldn't block the other two
+      matrix:
+        include:
+          - os: windows-latest
+            os-name: Windows
+            artifact-path: 'target/installer/*'
+          - os: macos-latest
+            os-name: macOS
+            artifact-path: 'target/installer/*'
+          - os: ubuntu-latest
+            os-name: Linux
+            artifact-path: 'target/installer/*'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # JDK 21 ships with both jlink and jpackage, which the installer scripts
+      # rely on. JAVA_HOME is set by this action and the Linux/macOS scripts
+      # reference "$JAVA_HOME/jmods" for jlink's module path.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # jpackage needs these to produce a .deb on Linux; absent on a bare runner.
+      - name: Install Linux packaging tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update -qq && sudo apt-get install -y fakeroot binutils
+
+      - name: Build installer (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          chmod +x installer/build-linux.sh
+          ./installer/build-linux.sh
+
+      - name: Build installer (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          chmod +x installer/build-macos.sh
+          ./installer/build-macos.sh
+
+      - name: Build installer (Windows)
+        if: matrix.os == 'windows-latest'
+        run: .\installer\build-windows.bat
+        shell: cmd
+
+      - name: Upload installer
+        if: always()   # still collect whatever was produced if a later step failed
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaziflow-installer-${{ matrix.os-name }}
+          path: ${{ matrix.artifact-path }}
+          retention-days: 30
+          if-no-files-found: warn
