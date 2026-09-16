@@ -47,7 +47,7 @@ com.kaziflow.views        — JavaFX screens, one class per screen
 
 ### 2.2 The Industry Profile + Module system (the core idea)
 
-One codebase, many business types. `IndustryProfile` is an enum (20 entries: General Retail, Pharmacy, Restaurant, Hotel, SACCO, etc.) — each defines a display name, icon, POS layout, a **list of module IDs** to activate, and **terminology overrides** (e.g. a printing shop calls a "sale" a "Job Order"). `ModuleRegistry` reads the active profile and builds the sidebar/navigation from whichever modules that profile enables.
+One codebase, many business types. `IndustryProfile` is an enum (22 entries: General Retail, Pharmacy, Restaurant, Hotel, SACCO, etc.) — each defines a display name, icon, POS layout, a **list of module IDs** to activate, and **terminology overrides** (e.g. a printing shop calls a "sale" a "Job Order"). `ModuleRegistry` reads the active profile and builds the sidebar/navigation from whichever modules that profile enables.
 
 **As of v11.15**, module activation can also be **overridden per-installation**, independent of the profile default — see Settings → System Modules. This exists specifically so a business that spans more than one vertical (e.g. a pharmacy that also runs a small clinic) isn't stuck with one profile's fixed list.
 
@@ -191,6 +191,52 @@ A real holding company operates facilities of genuinely different types (hospita
 This came up directly in conversation with the project owner around a hypothetical (a pharmacy + clinic + nursing home under one company) and is now independently confirmed by real reference material in §8. The honest current answer, given today's architecture: pick **CUSTOM** as the Industry Profile, use **System Modules** to turn on the union of what's needed, and use **Branch Management** to track locations. The real limitation, stated plainly: **every branch shares the same active module set** — there's no way for one branch to be pharmacy-configured and another nursing-home-configured within a single installation. For genuine per-branch operational separation today, running separate installations (using the multi-computer modes in §3) is the more honest fit than pretending the single-database model handles it. Whether/how to build real per-branch module configuration is an open design question, not yet decided.
 
 ---
+
+## 9.5 Consolidated Architectural Gaps — What Actually Stands Between "Foundation" and "Serves a Real Organization"
+
+This section collects every structural gap identified across the whole review, ordered by how consequential each is. It exists because the project owner's own framing was precise: *"what we have now is the foundation and can't serve a real organization work setting to its fullest."* These are the specific reasons why.
+
+**None of these are bugs.** Every bug found during the review was fixed (see the changelog). These are architectural limitations — things the current data model or design genuinely cannot express, no matter how much feature work is layered on top. Each needs a design decision before code.
+
+### Tier 1 — Structural, affects everything built on top
+
+**1. One flat price per product. No payer-type concept.**
+The reference HMIS prices the same item differently per payer (cash / each insurance scheme / corporate account) *and* per branch. The Unshur memo independently confirms this is load-bearing, naming nine real Kenyan schemes (TSC, Usalama, UHC, FFS-Others, M-Tiba, CIC, Britam, KPLC, APA) that daily reporting must break down by. KaziFlow's `products` table has a single `selling_price` column. **Every pricing, invoicing, and insurance-adjacent feature built before this is resolved will need reworking afterward.** This is the most consequential single finding of the entire review.
+
+**2. No real double-entry bookkeeping.**
+v11.19/v11.20 removed fabricated financial figures and replaced them with real summed data — genuine progress, but the Finance module still computes reports directly from sales/expenses rather than from posted journal entries. The reference has General Journal, a real structured Chart of Accounts, Opening Balances, and Trial Balance as separate first-class modules. Without postable journal entries there is no audit trail from a report back to the transactions that produced it, and no way to express adjustments, accruals, or corrections that aren't themselves sales or expenses.
+
+**3. No Confirm→Reverse / Draft→Finalize lifecycle on financial records.**
+Real financial systems never hard-delete; they post a traceable reversing entry. KaziFlow currently deletes or edits in place. Related: v11.17 introduced exactly this pattern for purchases (pending → received, with stock only moving on receipt, guarded against double-application) — that's the correct shape, and it should generalize to sales, invoices, and journal entries rather than remaining purchase-specific.
+
+### Tier 2 — Blocks real multi-entity organizations
+
+**4. One module set per installation.**
+Every branch shares the same active modules. A group running a pharmacy, a clinic, and a nursing home cannot configure them differently within one installation. Confirmed as a real scenario, not hypothetical, by the Unshur memo (§8.6) — nine facilities of genuinely different types, several with their own sub-branches. Current honest workaround: separate installations per facility using the multi-computer modes (§3). See §9 for the full discussion.
+
+**5. No group-level roll-up reporting.**
+The memo shows monthly consolidated reporting to a Group General Manager spanning both financial and clinical metrics across all facilities. Nothing in KaziFlow aggregates across installations or branches today.
+
+**6. Fixed admin/user role model.**
+No way to define a position and assign it a specific set of modules and permissions. This is §7.1's requested work — and §8.3 supplies the design principle from the reference: self-service is **a permissions filter over shared data**, not a separate set of duplicated screens.
+
+### Tier 3 — Real, but narrower in blast radius
+
+**7. No custom module builder** — §7.2. Admin-defined modules with their own fields and calculations. Needs a dedicated design discussion; the central open question is dynamic schema generation vs. a flexible generic storage model (EAV/JSON), which has real tradeoffs either way.
+
+**8. Country-specific reporting formats are not swappable.** `VATConfig`/`PayrollTaxConfig` made the *rates* dynamic (§4), but statutory *report formats* (ETIMS, MoH-style returns) remain Kenya-shaped in code. §8.5.
+
+**9. Loyalty earn-rate still hardcoded** ("1 point per KES 100" in `SalesView`). The smallest item on this list and the most mechanical to fix — same treatment as VAT/payroll.
+
+**10. ~76 dialogs still construct their own boilerplate.** `DialogUtils` exists (§4.5) and resizability was applied project-wide, but migrating existing call sites to `styledDialog()` — eliminating the duplicated title/style/width setup itself — hasn't been done. Deliberately not rushed: a careless mechanical sweep at that scale is exactly how the v11.19 regression happened.
+
+### What the reference material confirms is already right
+
+Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventory engine serving all verticals** (§8.4) — the reference reuses identical stock/movement/reorder/batch/stock-take shapes across Pharmacy, Physiotherapy, and general Stores, exactly as KaziFlow already shares `ProductDAO`/`StockTakeDAO` rather than duplicating per profile. The Industry Profile system's basic premise is sound.
+
+---
+
+
 
 ## 10. File Map — Where Things Live (quick reference)
 
