@@ -90,6 +90,7 @@ public class DatabaseManager {
                 stmt.execute("PRAGMA journal_mode = WAL");
                 createTables(stmt);
                 createIndexes(stmt);
+                createPermissionTables(stmt);
                 seedDefaultData(stmt);
                 com.kaziflow.network.NetworkConfig net = com.kaziflow.network.NetworkConfig.getInstance();
                 String location = switch (net.getMode()) {
@@ -483,6 +484,72 @@ public class DatabaseManager {
                 key TEXT PRIMARY KEY,
                 value TEXT,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """);
+    }
+
+    /**
+     * Dynamic roles & permissions (Odoo-style groups, see
+     * docs/design/dynamic-roles-and-permissions.md). Its own method rather
+     * than folded into createTables() since it was added well after the
+     * original schema — same additive-migration philosophy as everything
+     * else here: CREATE TABLE IF NOT EXISTS only, old roles/users.role_id
+     * untouched so existing data keeps working during migration.
+     *
+     * Generic-by-design (see PROJECT_GUIDE.md's governing principle and the
+     * "generic modular monolith" framing): module_access is keyed by the
+     * SAME module_id string Module.getId() already uses, so a newly added
+     * module needs zero permission-schema changes to be governable — no
+     * per-module special-casing anywhere in this table or the service that
+     * reads it. special_permissions applies the identical idea one level
+     * further: action_key is an arbitrary string (e.g. "void_sale"), not a
+     * fixed enum baked into the schema, so PermissionService can expose one
+     * generic canPerform(actionKey) rather than growing a bespoke
+     * canVoidSale()/canApplyDiscount()/... method per feature.
+     */
+    private void createPermissionTables(Statement stmt) throws SQLException {
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS permission_groups (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                name        TEXT NOT NULL UNIQUE,
+                description TEXT,
+                is_system   INTEGER NOT NULL DEFAULT 0,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """);
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS permission_group_implies (
+                group_id   INTEGER NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+                implied_id INTEGER NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+                PRIMARY KEY (group_id, implied_id)
+            )
+        """);
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS user_permission_groups (
+                user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                group_id INTEGER NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+                PRIMARY KEY (user_id, group_id)
+            )
+        """);
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS module_access (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id     INTEGER NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+                module_id    TEXT NOT NULL,
+                can_read     INTEGER NOT NULL DEFAULT 0,
+                can_create   INTEGER NOT NULL DEFAULT 0,
+                can_write    INTEGER NOT NULL DEFAULT 0,
+                can_delete   INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(group_id, module_id)
+            )
+        """);
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS special_permissions (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id    INTEGER NOT NULL REFERENCES permission_groups(id) ON DELETE CASCADE,
+                action_key  TEXT NOT NULL,
+                granted     INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(group_id, action_key)
             )
         """);
     }
