@@ -314,7 +314,7 @@ public class UserManagementView {
 
         form.addRow(0, lbl("Full Name"), nameField);
         form.addRow(1, lbl("Email Address"), emailField);
-        form.addRow(2, lbl("Password"), pwField);
+        form.addRow(2, lbl("Password"), com.kaziflow.utils.PasswordFieldUtils.withToggle(pwField));
         form.addRow(3, lbl("Role"), roleCombo, lbl("Status"), statusCombo);
 
         dialog.getDialogPane().setContent(form);
@@ -358,7 +358,7 @@ public class UserManagementView {
         newPw.setStyle("-fx-pref-height: 36px; -fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 0 8;");
         PasswordField confirmPw = new PasswordField(); confirmPw.setPromptText("Confirm new password");
         confirmPw.setStyle(newPw.getStyle());
-        form.getChildren().addAll(lbl("New Password"), newPw, lbl("Confirm Password"), confirmPw);
+        form.getChildren().addAll(lbl("New Password"), com.kaziflow.utils.PasswordFieldUtils.withToggle(newPw), lbl("Confirm Password"), com.kaziflow.utils.PasswordFieldUtils.withToggle(confirmPw));
         dialog.getDialogPane().setContent(form);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 

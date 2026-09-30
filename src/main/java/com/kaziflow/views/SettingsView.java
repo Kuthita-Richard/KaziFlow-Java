@@ -312,7 +312,7 @@ public class SettingsView {
                 keyField.setStyle("-fx-pref-height:36px;-fx-background-color:white;" +
                     "-fx-border-color:#e2e8f0;-fx-border-radius:6;-fx-background-radius:6;" +
                     "-fx-font-size:13px;-fx-padding:0 10;");
-                content.getChildren().addAll(info, keyField);
+                content.getChildren().addAll(info, com.kaziflow.utils.PasswordFieldUtils.withToggle(keyField));
                 dialog.getDialogPane().setContent(content);
                 dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
                 dialog.showAndWait().ifPresent(r -> {
@@ -659,7 +659,7 @@ public class SettingsView {
         f.addRow(1, lbl("SMTP Host"), hostField);
         f.addRow(2, lbl("Port"), portField);
         f.addRow(3, lbl("Username"), userField);
-        f.addRow(4, lbl("Password"), passField);
+        f.addRow(4, lbl("Password"), com.kaziflow.utils.PasswordFieldUtils.withToggle(passField));
         f.addRow(5, lbl("From Name"), fromNameField);
 
         d.getDialogPane().setContent(f);
@@ -1072,8 +1072,8 @@ public class SettingsView {
         confirmF.setPromptText(enabled ? "New passphrase" : "Confirm passphrase");
         confirmF.setStyle(passF.getStyle());
 
-        if (enabled) content.getChildren().addAll(statusLbl, info, new Label("Current:"), passF, new Label("New passphrase:"), confirmF);
-        else         content.getChildren().addAll(statusLbl, info, new Label("Passphrase:"), passF, new Label("Confirm:"), confirmF);
+        if (enabled) content.getChildren().addAll(statusLbl, info, new Label("Current:"), com.kaziflow.utils.PasswordFieldUtils.withToggle(passF), new Label("New passphrase:"), com.kaziflow.utils.PasswordFieldUtils.withToggle(confirmF));
+        else         content.getChildren().addAll(statusLbl, info, new Label("Passphrase:"), com.kaziflow.utils.PasswordFieldUtils.withToggle(passF), new Label("Confirm:"), com.kaziflow.utils.PasswordFieldUtils.withToggle(confirmF));
 
         ButtonType enableBtn = new ButtonType(enabled ? "Change Passphrase" : "Enable Encryption");
         d.getDialogPane().setContent(content);

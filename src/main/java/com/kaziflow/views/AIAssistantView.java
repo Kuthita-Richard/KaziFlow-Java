@@ -397,7 +397,7 @@ public class AIAssistantView {
         Label hint = new Label("Key starts with: sk-ant-api03-...");
         hint.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
 
-        content.getChildren().addAll(info, keyField, hint);
+        content.getChildren().addAll(info, com.kaziflow.utils.PasswordFieldUtils.withToggle(keyField), hint);
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 

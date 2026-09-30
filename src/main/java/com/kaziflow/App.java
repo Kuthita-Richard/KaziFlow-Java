@@ -166,7 +166,7 @@ public class App extends Application {
 
         VBox content = new VBox(8,
             new Label("Database Passphrase:"),
-            pf);
+            com.kaziflow.utils.PasswordFieldUtils.withToggle(pf));
         content.setPadding(new javafx.geometry.Insets(16));
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);

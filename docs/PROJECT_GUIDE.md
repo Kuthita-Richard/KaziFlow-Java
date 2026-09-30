@@ -92,6 +92,10 @@ public class XConfig {
 
 v11.21: ~76 dialogs across 43 files each hand-built their own title/style/width setup from scratch. When "dialogs should be resizable" came up, fixing that as 76 individual edits would itself have violated this project's own stated principle. `com.kaziflow.utils.DialogUtils.styledDialog(...)` is now the standard way to build a new dialog; `makeResizable(existingDialog)` retrofits old ones. **New dialogs should use `styledDialog()`, not `new Dialog<>()` directly.**
 
+### 4.6 `PasswordFieldUtils` — show/hide eye toggle (v11.26)
+
+Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(pf)` — build the field as usual, put the **returned node** in the layout, keep reading `pf.getText()`. Don't hand-roll a per-screen reveal button. Use `PasswordFieldUtils.requestFocus(pf)` (not `pf.requestFocus()`) to move focus programmatically, since the hidden half of the pair can't take focus. **New password fields should use this.**
+
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
 - ✅ Currency, Payroll tax (all statutory rates), VAT, Delivery pricing (per-km + named overrides), which modules are active per installation
 - ❌ **Loyalty points earn-rate** — hardcoded "1 point per KES 100 spent" in `SalesView`. Same treatment as VAT/payroll would apply here; flagged, not yet built.
@@ -115,6 +119,7 @@ Payroll and VAT calculations are not just code correctness issues — they're re
 
 - A real `mvn javafx:run` build (run by the project owner, not this environment) has caught genuine compile errors that slipped through pure code review multiple times: a `Dialog<Void>` that should have been `Dialog<ButtonType>`, a missing `List`/`ArrayList` import, a variable accidentally deleted during an edit.
 - **A `str_replace`/find-and-replace edit can silently delete an adjacent line even when the total brace/paren count stays balanced.** This actually happened once (see `docs/changelog/v11.19`) — a `TextField searchF` declaration was accidentally dropped while inserting an unrelated fix a few lines above it, and the balance-checking script used throughout this project's history could not and cannot detect this class of mistake, because deleting one line changes nothing about total counts.
+- **UPDATE (v11.26): a real JavaFX compile IS possible in this sandbox.** Ubuntu's apt mirrors are reachable even though Maven Central is not, and they package OpenJFX (v11), gson, jbcrypt and okhttp. Run `tools/sandbox-verify.sh` — it bootstraps everything from scratch and compiles the whole project (a scratch copy with a tiny okhttp-3-vs-4 shim; real source untouched). With `xvfb` installed, JavaFX code can also be run and screenshotted (`Scene.snapshot`), see `tools/checks/`. **Do this first in any session; it is far more reliable than review.** Caveat: OpenJFX 11 ≠ 21, so the owner's `mvn javafx:run` remains the final word.
 - **Practical mitigation used throughout this project, recommended for anyone continuing it:**
   1. After any edit, **re-view the actual resulting file content** around the change — don't just trust that the edit "succeeded."
   2. Prefer **pure additions** (inserting a new line without touching existing ones) over **replacements** when applying the same fix across many files — see how the `DialogUtils` rollout (v11.21) was deliberately done this way specifically to avoid repeating the v11.19 mistake.
@@ -247,6 +252,8 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Multi-computer networking | `network/*` |
 | Dynamic config services | `services/CurrencyService.java`, `services/PayrollTaxConfig.java`, `services/VATConfig.java` |
 | Shared dialog construction | `utils/DialogUtils.java` |
+| Password show/hide toggle | `utils/PasswordFieldUtils.java` |
+| Sandbox compile/test tooling | `tools/sandbox-verify.sh`, `tools/checks/*` |
 | POS / checkout | `views/SalesView.java`, `dao/SaleDAO.java` |
 | Payroll | `views/PayrollView.java`, `dao/PayrollDAO.java` |
 | Settings (all dialogs) | `views/SettingsView.java` — **large file, many independent `if (title.equals(...))` dispatch blocks; see §6 and the v11.10 changelog entry for a real bug that hid in exactly this kind of dispatch chain (a misplaced brace made 6 settings dialogs completely unreachable for an unknown period)** |

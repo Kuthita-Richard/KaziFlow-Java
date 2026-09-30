@@ -157,7 +157,7 @@ public class LoginView {
         passwordField.setPrefWidth(380);
         HBox.setHgrow(passwordField, Priority.ALWAYS);
 
-        passRow.getChildren().add(passwordField);
+        passRow.getChildren().add(com.kaziflow.utils.PasswordFieldUtils.withToggle(passwordField));
         passBox.getChildren().addAll(passLabel, passRow);
 
         // Remember me + Forgot password row
@@ -188,7 +188,7 @@ public class LoginView {
 
         // Allow Enter key login
         passwordField.setOnAction(e -> handleLogin());
-        emailField.setOnAction(e -> passwordField.requestFocus());
+        emailField.setOnAction(e -> com.kaziflow.utils.PasswordFieldUtils.requestFocus(passwordField));
 
         // Divider
         HBox dividerRow = new HBox(10);
@@ -284,6 +284,7 @@ public class LoginView {
                 } else {
                     showError("Invalid email or password. Please try again.");
                     passwordField.clear();
+                    com.kaziflow.utils.PasswordFieldUtils.setRevealed(passwordField, false);
                 }
             });
         }).start();
