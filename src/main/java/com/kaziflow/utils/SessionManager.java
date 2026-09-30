@@ -16,10 +16,13 @@ public class SessionManager {
 
     public void login(User user) {
         this.currentUser = user;
+        // Permissions are resolved per user and cached; a new session must never inherit the last one's.
+        com.kaziflow.services.PermissionService.getInstance().invalidate();
     }
 
     public void logout() {
         this.currentUser = null;
+        com.kaziflow.services.PermissionService.getInstance().invalidate();
     }
 
     public User getCurrentUser() {
@@ -30,10 +33,14 @@ public class SessionManager {
         return currentUser != null;
     }
 
+    /**
+     * @deprecated The old substring match against the legacy roles JSON had zero callers and did not
+     * reflect Positions. Delegates to the real engine so nothing can accidentally rely on the old
+     * behaviour; new code should call PermissionService directly (can(moduleId, action) / canPerform(actionKey)).
+     */
+    @Deprecated
     public boolean hasPermission(String permission) {
-        if (currentUser == null) return false;
-        String perms = currentUser.getPermissions();
-        return perms != null && (perms.contains("\"all\": true") || perms.contains("\"" + permission + "\": true"));
+        return currentUser != null && com.kaziflow.services.PermissionService.getInstance().canPerform(permission);
     }
 
     public String getBusinessSetting(String key) {

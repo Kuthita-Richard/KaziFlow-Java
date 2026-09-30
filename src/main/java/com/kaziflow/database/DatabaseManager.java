@@ -552,6 +552,16 @@ public class DatabaseManager {
                 UNIQUE(group_id, action_key)
             )
         """);
+        // Catalog of the named actions the Positions editor offers (see SpecialPermissions).
+        // Data, not code: adding a row adds a checkbox, with no UI change.
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS permission_actions (
+                action_key  TEXT PRIMARY KEY,
+                label       TEXT NOT NULL,
+                description TEXT,
+                sort_order  INTEGER NOT NULL DEFAULT 1000
+            )
+        """);
     }
 
     /**

@@ -43,8 +43,13 @@ public class PermissionService {
         return instance;
     }
 
-    // Cache: resolved per logged-in user, invalidated on login/logout/group edit.
+    // Cache: resolved per logged-in user. Invalidated on login/logout (SessionManager) AND whenever the
+    // permissions epoch changes — any edit made through PermissionAdminService bumps it, so a change made
+    // while someone is logged in (or from another PC in server mode) applies within REVALIDATE_MILLIS.
     private Integer cachedUserId = null;
+    private long cachedEpoch = -1;
+    private long lastEpochCheck = 0;
+    private long revalidateMillis = 3000;
     private Set<Integer> resolvedGroupIds = Collections.emptySet();
     private Map<String, boolean[]> moduleAccessCache = new HashMap<>(); // moduleId -> [read,create,write,delete]
     private Set<String> specialGrantsCache = new HashSet<>();
@@ -55,13 +60,18 @@ public class PermissionService {
     /** Call after login, logout, or any edit to the current user's group assignments. */
     public void invalidate() {
         cachedUserId = null;
+        cachedEpoch = -1;
+        lastEpochCheck = 0;
         resolvedGroupIds = Collections.emptySet();
         moduleAccessCache = new HashMap<>();
         specialGrantsCache = new HashSet<>();
         superAdminCache = null;
     }
 
-    private void ensureResolved() {
+    /** How often (ms) a logged-in session re-checks whether permissions changed. Mainly for tests. */
+    public synchronized void setRevalidateMillis(long millis) { this.revalidateMillis = Math.max(0, millis); }
+
+    private synchronized void ensureResolved() {
         Integer userId;
         try {
             var user = SessionManager.getInstance().getCurrentUser();
@@ -69,43 +79,43 @@ public class PermissionService {
         } catch (Exception e) { userId = null; }
 
         if (userId == null) { invalidate(); return; }
-        if (userId.equals(cachedUserId)) return; // already resolved for this user
 
+        long now = System.currentTimeMillis();
+        if (userId.equals(cachedUserId)) {
+            if (now - lastEpochCheck < revalidateMillis) return;       // fresh enough
+            lastEpochCheck = now;
+            long epoch = currentEpoch();
+            if (epoch == cachedEpoch) return;                          // nothing changed since we resolved
+        }
+
+        // (Re)resolve from the database. Any failure below leaves EMPTY grants = deny (fail secure).
         cachedUserId = userId;
+        lastEpochCheck = now;
+        cachedEpoch = currentEpoch();
         resolvedGroupIds = resolveGroupsForUser(userId);
         moduleAccessCache = loadModuleAccess(resolvedGroupIds);
         specialGrantsCache = loadSpecialGrants(resolvedGroupIds);
         superAdminCache = null; // recomputed lazily by isSuperAdmin()
     }
 
+    private long currentEpoch() {
+        try (Connection conn = DatabaseManager.getInstance().getConnection()) {
+            return PermissionResolver.readEpoch(conn);
+        } catch (Exception e) { return -1; }
+    }
+
     /** Directly-assigned groups, expanded transitively through permission_group_implies. Cycle-guarded. */
     private Set<Integer> resolveGroupsForUser(int userId) {
-        Set<Integer> direct = new LinkedHashSet<>();
-        try (Connection conn = DatabaseManager.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                 "SELECT group_id FROM user_permission_groups WHERE user_id=?")) {
-            ps.setInt(1, userId);
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) direct.add(rs.getInt("group_id"));
-        } catch (Exception e) { e.printStackTrace(); }
-
-        Set<Integer> expanded = new LinkedHashSet<>(direct);
-        Deque<Integer> frontier = new ArrayDeque<>(direct);
         try (Connection conn = DatabaseManager.getInstance().getConnection()) {
-            while (!frontier.isEmpty()) {
-                int groupId = frontier.poll();
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "SELECT implied_id FROM permission_group_implies WHERE group_id=?")) {
-                    ps.setInt(1, groupId);
-                    ResultSet rs = ps.executeQuery();
-                    while (rs.next()) {
-                        int impliedId = rs.getInt("implied_id");
-                        if (expanded.add(impliedId)) frontier.add(impliedId); // only recurse into genuinely new groups — cycle guard
-                    }
-                }
+            Set<Integer> direct = new LinkedHashSet<>();
+            try (PreparedStatement ps = conn.prepareStatement(
+                     "SELECT group_id FROM user_permission_groups WHERE user_id=?")) {
+                ps.setInt(1, userId);
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) direct.add(rs.getInt("group_id"));
             }
-        } catch (Exception e) { e.printStackTrace(); }
-        return expanded;
+            return PermissionResolver.expand(direct, PermissionResolver.loadImplies(conn));
+        } catch (Exception e) { e.printStackTrace(); return Collections.emptySet(); }
     }
 
     private Map<String, boolean[]> loadModuleAccess(Set<Integer> groupIds) {
@@ -188,19 +198,21 @@ public class PermissionService {
     private boolean isSuperAdmin() {
         if (superAdminCache != null) return superAdminCache;
         if (cachedUserId == null) return false;
-        try (Connection conn = DatabaseManager.getInstance().getConnection();
-             PreparedStatement ps = conn.prepareStatement("""
-                 SELECT COUNT(*) as cnt FROM user_permission_groups upg
-                 JOIN permission_groups pg ON pg.id = upg.group_id
-                 WHERE upg.user_id = ? AND pg.name = 'Administrator' AND pg.is_system = 1
-             """)) {
-            ps.setInt(1, cachedUserId);
-            ResultSet rs = ps.executeQuery();
-            superAdminCache = rs.next() && rs.getInt("cnt") > 0;
+        try (Connection conn = DatabaseManager.getInstance().getConnection()) {
+            Integer adminId = PermissionResolver.adminGroupId(conn);
+            // resolvedGroupIds is already expanded through "implies", so a position that includes
+            // Administrator is administrator-equivalent too — the same rule the lockout guard uses.
+            superAdminCache = adminId != null && resolvedGroupIds.contains(adminId);
         } catch (Exception e) {
             e.printStackTrace();
             superAdminCache = false;
         }
         return superAdminCache;
+    }
+
+    /** True if the current user is administrator-equivalent (used by the editor UI to show locked/"everything" state). */
+    public boolean isAdministrator() {
+        ensureResolved();
+        return isSuperAdmin();
     }
 }
