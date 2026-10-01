@@ -1,6 +1,6 @@
 # Custom modules (admin-defined departments) — feasibility & design
 
-**Status:** feasibility proven on the app's own SQLite version; design proposed; **not built yet** (only the registry hook exists).
+**Status (v11.28):** feasibility proven on the app's own SQLite version; **phases 1–3 built and verified** (engine, generic runtime screen, builder UI — see "Implementation status" at the bottom). Reports, templates and entity-level permissions are still to do.
 **Why this exists:** a hospital group with no transport department later adds an Ambulance department, or a non-pharma company adds Staff Transport. An administrator must be able to create that department — naming it and choosing the entities (and their fields) it holds — without a developer, a code change or a redeploy. Closes PROJECT_GUIDE §7.2 / gap #7.
 
 ## 1. Verdict: implementable — without per-field schema changes
@@ -80,3 +80,25 @@ Module **Vehicles & Mileage** (`x_vehicles`): entities **Vehicle Type** (name) �
 3. **Builder UI** in Settings (create module → entities → fields → live preview).
 4. **Reports:** grouped sums over entities; link into Finance cost centres.
 5. **Templates:** import/export; ship "Fleet & Mileage" (from §37), "Assets" (§36), "Requisitions" (§39) as starter packs.
+
+---
+
+## Implementation status (v11.28)
+
+**Built** — package `com.kaziflow.custom`, verified with `tools/checks/CustomModuleCheck` (71 assertions, real SQLite) and `CustomModuleUiCheck` (19, real JavaFX; the screens were rendered and inspected):
+
+| Phase | What exists |
+|---|---|
+| 1. Engine | `CustomModuleService` (modules → entities → fields; immutable `f_<id>` keys; type/link fixed once created; archive-not-drop; optional expression index = the only DDL), `CustomRecordService` (validated JSON records; type/required/choice/link checks; soft delete; "still used by N records" protection; values-only search; lookup titles), `FormulaEngine` (own parser, whitelisted functions, no code evaluation; `SUMOF`/`COUNTOF` child aggregates through bound parameters) |
+| 2. Generic runtime screen | `CustomModuleView`: a tab per record type, searchable list (columns = "show in list" fields), totals for numeric columns, generated add/edit form (one control per field type; validation keeps the dialog open), buttons follow Create/Write/Delete on `x_<key>` |
+| 3. Builder | `CustomModuleBuilderView` (Settings → **Custom Modules**): create/edit/deactivate/delete modules, add/rename/delete record types, add/edit/archive fields incl. choices, link targets and formulas typed with readable names (`{Km} / {Litres}`, `SUMOF(Mileage Log, Km)`) |
+| Wiring | `CustomModule` (one `Module` class for every custom module; `isUserDefined`), `CustomModuleLoader.sync()` (startup + after builder saves; deactivated modules are unregistered), `ModuleRegistry.registerModule/unregisterModule`, hidden from System Modules toggles, permissions automatic via `x_<key>` |
+
+**Verified end to end:** the HMIS §37 "Vehicles & Mileage" example built through the builder's real controls → appears in the registry → administrators can open it, a Cashier cannot (default deny) → a Position granting `x_ambulance` opens it live → read-only Position gets a disabled "+ New" → deactivation removes it while the data stays.
+
+**Decisions taken (change if you disagree):** module-level permissions in v1 (`module_access.module_id` is a free string, so `x_transport:vehicle` entity-level rules need no migration later); lookups target custom entities only in v1 (built-in Product/Customer/Employee/Branch pickers are the natural next step); deleting is refused while data exists (deactivate instead).
+
+**Found while building (real bugs, fixed):** list search ran over raw JSON and matched internal field keys (`_` matched everything) → now `json_each` values only; the WL-mode "read-then-write" transaction in `PermissionAdminService.guarded()` could fail with `SQLITE_BUSY_SNAPSHOT` whenever the async audit writer committed in between (the busy timeout does not apply in that case) → bounded retry of the rolled-back transaction (also in the seeder).
+
+**Still to do:** reports (grouped sums beyond the per-list totals), starter-pack import/export (Fleet & Mileage, Assets, Requisitions from the HMIS reference), lookups into built-in entities, Draft→Final states, per-branch availability, Swahili labels, optimistic locking for concurrent LAN edits, a live-socket test of record creation from a client PC.
+

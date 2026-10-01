@@ -138,6 +138,7 @@ public class SettingsView {
         String[][] modules = {
             {"◎", "Users & Access",       "Manage staff accounts, assign positions, reset passwords, and see recent access activity.", activeUsersStatus(),  "", "module_users"},
             {"◈", "Positions & Access",   "Define positions (Cashier, Branch Manager...), choose what each can do in every module, and set special permissions.", positionsStatus(),  "", "module_roles"},
+        {"▦", "Custom Modules",       "Add a department of your own (e.g. Ambulance, Staff Transport): choose its record types and fields.", customModulesStatus(), "", "module_custom"},
             {"⊙", "M-Pesa",               "Configure Daraja API, Paybill/Till numbers, and C2B webhooks.",   mpesaStatus(), mpesaConfigured() ? "#16a34a" : "", "module_mpesa"},
             {"✉", "SMS (Africa's Talking)","Send receipts and reminders via SMS for customers without WhatsApp.",smsStatus,smsColor,"module_sms"},
             {"📧", "Email Receipts",       "Configure SMTP to send receipts directly to customer email addresses.",
@@ -221,6 +222,9 @@ public class SettingsView {
                 try { scene.getStylesheets().add(getClass().getResource("/styles/main.css").toExternalForm()); } catch(Exception ignored) {}
                 stage.setScene(scene); stage.show();
             });
+        }
+        if (title.equals("Custom Modules")) {
+            card.setOnMouseClicked(e -> com.kaziflow.custom.CustomModuleBuilderView.showDialog(card.getScene() != null ? card.getScene().getWindow() : null));
         }
         if (title.equals("Positions & Access")) {
             card.setOnMouseClicked(e -> PositionsAccessView.showDialog(card.getScene() != null ? card.getScene().getWindow() : null));
@@ -802,6 +806,7 @@ public class SettingsView {
         VBox checklist = new VBox(6);
         java.util.Map<String, CheckBox> boxes = new java.util.LinkedHashMap<>();
         for (com.kaziflow.modules.Module m : registry.getAllAvailableModules()) {
+            if (m.isUserDefined()) continue; // admin-built modules are always on; retire them in Settings → Custom Modules
             boolean mandatory = alwaysOn.contains(m.getId());
             CheckBox cb = new CheckBox(m.getIcon() + "  " + m.getLabel() + (mandatory ? " (always on)" : ""));
             cb.setSelected(mandatory || currentlyEnabled.contains(m.getId()));
@@ -1266,6 +1271,11 @@ public class SettingsView {
     private String positionsStatus() {
         int n = com.kaziflow.services.PermissionAdminService.getInstance().listPositions().size();
         return n + (n == 1 ? " position" : " positions");
+    }
+
+    private String customModulesStatus() {
+        int n = com.kaziflow.custom.CustomModuleService.getInstance().listModules(false).size();
+        return n == 0 ? "None added yet" : n + (n == 1 ? " custom module" : " custom modules");
     }
 
     private boolean mpesaConfigured() {

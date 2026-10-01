@@ -56,7 +56,19 @@ public final class PermissionGroupSetup {
 
     private PermissionGroupSetup() {}
 
+    /** Seeds on every startup; retries if another connection (e.g. the audit writer) holds the database. */
     public static void seed(Connection c, Collection<String> knownModuleIds) throws SQLException {
+        for (int attempt = 1; ; attempt++) {
+            try { seedOnce(c, knownModuleIds); return; }
+            catch (SQLException e) {
+                String m = e.getMessage() == null ? "" : e.getMessage();
+                if (attempt >= 5 || !(m.contains("SQLITE_BUSY") || m.contains("database is locked"))) throw e;
+                try { Thread.sleep(150L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); throw e; }
+            }
+        }
+    }
+
+    private static void seedOnce(Connection c, Collection<String> knownModuleIds) throws SQLException {
         boolean prevAuto = c.getAutoCommit();
         c.setAutoCommit(false);
         try {

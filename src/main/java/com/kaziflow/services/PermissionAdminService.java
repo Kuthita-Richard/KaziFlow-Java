@@ -374,8 +374,37 @@ public final class PermissionAdminService {
 
     private Connection conn() throws SQLException { return DatabaseManager.getInstance().getConnection(); }
 
-    /** One transaction + the "an active administrator must remain" post-condition. */
+    /**
+     * One transaction + the "an active administrator must remain" post-condition.
+     *
+     * <p>Retries when SQLite reports the database busy. In WAL mode a transaction that READS first and
+     * then writes fails immediately (SQLITE_BUSY_SNAPSHOT — the 5 s busy_timeout does not apply) if any
+     * other connection committed in between, and the asynchronous audit writer commits all the time. The
+     * work is idempotent (a failed attempt is fully rolled back), so trying again is safe.
+     */
     private <T> T guarded(Work<T> work) throws PermissionAdminException {
+        PermissionAdminException last = null;
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            try {
+                return guardedOnce(work);
+            } catch (PermissionAdminException e) {
+                if (!isBusy(e)) throw e;
+                last = e;
+                try { Thread.sleep(120L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
+            }
+        }
+        throw last;
+    }
+
+    private static boolean isBusy(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            String m = t.getMessage();
+            if (m != null && (m.contains("SQLITE_BUSY") || m.contains("database is locked"))) return true;
+        }
+        return false;
+    }
+
+    private <T> T guardedOnce(Work<T> work) throws PermissionAdminException {
         try (Connection c = conn()) {
             boolean prev = c.getAutoCommit();
             c.setAutoCommit(false);

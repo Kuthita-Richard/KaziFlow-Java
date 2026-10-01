@@ -104,6 +104,14 @@ Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(p
 - **All permission edits go through `PermissionAdminService`** (one transaction + "an active administrator must remain" post-condition; bumps `permissions_epoch`, which `PermissionService` re-validates every ~3 s so edits reach logged-in users and other PCs).
 - Sidebar is filtered at READ time in `ModuleRegistry` (not in `loadModules()`, which runs once before anyone logs in).
 
+### 4.8 Custom modules — admin-built departments (v11.28)
+
+- A department the product doesn't ship with is DATA, not code: rows in `custom_modules` / `custom_entities` / `custom_fields`, records as validated JSON in `custom_records`. **Do not create a new `Module` class or table for a new department** — `CustomModule` + `CustomModuleView` render any of them. The module id is `x_<key>`, so permissions work with no extra step.
+- Field keys are immutable (`f_<id>`); never derive a key from a label. Fields are archived, never dropped; type/link target can't change after creation.
+- Calculations go through `FormulaEngine` only (own parser, whitelisted functions). **Never** `eval`, a script engine, or user text concatenated into SQL.
+- The only DDL this feature issues is an optional expression `CREATE INDEX` named from numeric ids. SQLite rule learned the hard way: **drop an index before dropping the column it references**.
+- In WAL mode a transaction that reads-then-writes can fail instantly with `SQLITE_BUSY_SNAPSHOT` (the busy timeout doesn't apply) when another connection commits in between — the audit writer does, constantly. Wrap such transactions in a bounded retry (see `PermissionAdminService.guarded`).
+
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
 - ✅ Currency, Payroll tax (all statutory rates), VAT, Delivery pricing (per-km + named overrides), which modules are active per installation
 - ❌ **Loyalty points earn-rate** — hardcoded "1 point per KES 100 spent" in `SalesView`. Same treatment as VAT/payroll would apply here; flagged, not yet built.
@@ -153,7 +161,7 @@ Explicit direction: rather than hardcoded admin/super-admin roles, **access leve
 
 ### 7.2 Custom module builder ("admin-defined modules")
 
-> **STATUS (v11.27): feasibility proven, design written, not built.** See `docs/design/custom-modules.md` — recommended approach is JSON documents in one generic table + metadata tables + expression indexes (no per-field `ALTER TABLE`), verified on the bundled SQLite 3.44.1. The registry hook (`ModuleRegistry.registerModule`, `Module.isUserDefined`) already exists.
+> **STATUS (v11.28): phases 1–3 BUILT** (engine, generic runtime screen, builder UI at Settings → Custom Modules). See `docs/design/custom-modules.md` (design, evidence, implementation status) and §4.8 below. Reports, starter packs and entity-level permissions remain.
 
 Direct request, paraphrased: *"we need a place where modules can be written/created/defined — if a company adds a department not in the module packages provided by the system, they can define their own: name it, define what data it holds, and calculations if needed."*
 
@@ -239,7 +247,7 @@ No way to define a position and assign it a specific set of modules and permissi
 
 ### Tier 3 — Real, but narrower in blast radius
 
-**7. No custom module builder** — §7.2. Admin-defined modules with their own fields and calculations. Needs a dedicated design discussion; the central open question is dynamic schema generation vs. a flexible generic storage model (EAV/JSON), which has real tradeoffs either way. **Feasibility + design done (v11.27): `docs/design/custom-modules.md`.**
+**7. No custom module builder** — §7.2. Admin-defined modules with their own fields and calculations. Needs a dedicated design discussion; the central open question is dynamic schema generation vs. a flexible generic storage model (EAV/JSON), which has real tradeoffs either way. **Built in v11.28 (engine + runtime screen + builder): `docs/design/custom-modules.md`.**
 
 **8. Country-specific reporting formats are not swappable.** `VATConfig`/`PayrollTaxConfig` made the *rates* dynamic (§4), but statutory *report formats* (ETIMS, MoH-style returns) remain Kenya-shaped in code. §8.5.
 
@@ -271,6 +279,8 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Special-action catalog | `services/SpecialPermissions.java` (table `permission_actions`) |
 | Positions & Access editor | `views/PositionsAccessView.java` |
 | Greying controls by permission | `utils/PermissionGuard.java` |
+| Custom (admin-built) modules: definitions / records / formulas | `custom/CustomModuleService.java`, `custom/CustomRecordService.java`, `custom/FormulaEngine.java` |
+| Custom modules: generic runtime screen / builder / registry glue | `custom/CustomModuleView.java`, `custom/CustomModuleBuilderView.java`, `custom/CustomModule.java`, `custom/CustomModuleLoader.java` |
 | Sandbox compile/test tooling | `tools/sandbox-verify.sh`, `tools/checks/*` |
 | POS / checkout | `views/SalesView.java`, `dao/SaleDAO.java` |
 | Payroll | `views/PayrollView.java`, `dao/PayrollDAO.java` |
@@ -298,5 +308,4 @@ Every version from the original upload (v9) onward has its own dated entry in `d
 - **`ReportsView` (~line 88) shows invented figures:** `netProfit > 0 ? netProfit : 1800000` and a fallback 42% margin — fabricated fallbacks, the §5 bug class.
 - **AI Assistant panel is not permission-gated:** a user without Finance access could still ask it about financial data.
 - **Own position changes** show in the sidebar after the next sign-in (permissions themselves refresh within seconds).
-- **System Modules list will show user-defined modules** once the builder exists, but toggling one has no effect (`isUserDefined`); the dialog should skip them.
 

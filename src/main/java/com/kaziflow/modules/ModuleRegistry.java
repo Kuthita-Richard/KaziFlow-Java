@@ -194,6 +194,13 @@ public class ModuleRegistry {
      * a user-defined module ({@link Module#isUserDefined()}) is also active straight away; a shipped one is
      * switched on via Settings → System Modules. Returns false if the id is taken.
      */
+    /** Removes a run-time (user-defined) module, e.g. one an administrator deactivated or deleted. */
+    public boolean unregisterModule(String moduleId) {
+        boolean removed = allModules.removeIf(m -> m.isUserDefined() && m.getId().equals(moduleId));
+        if (removed && initialized) loadModules();
+        return removed;
+    }
+
     public boolean registerModule(Module module) {
         for (Module m : allModules) if (m.getId().equals(module.getId())) return false;
         allModules.add(module);

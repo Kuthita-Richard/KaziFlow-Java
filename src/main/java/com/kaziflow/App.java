@@ -93,6 +93,13 @@ public class App extends Application {
         // 4. Initialize ModuleRegistry — loads industry profile + enabled modules
         ModuleRegistry.getInstance().init();
 
+        // 4a. Admin-defined departments (custom modules) become real modules before permissions are seeded.
+        try {
+            com.kaziflow.custom.CustomModuleLoader.sync();
+        } catch (Exception e) {
+            System.err.println("[CustomModules] Could not load custom modules: " + e.getMessage());
+        }
+
         // 4b. Permissions: seed the Administrator position + special-action catalog, migrate legacy roles
         // once, and self-heal if no active administrator exists. Idempotent, so safe on every start.
         // A CLIENT PC skips it — the server it connects to owns (and has already seeded) that data.
