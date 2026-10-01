@@ -43,6 +43,20 @@ public interface Module {
     default boolean isBottomNav() { return false; }
 
     /**
+     * Whether every signed-in user may open this module regardless of Positions
+     * (e.g. Help). Default: false — access is denied unless a Position grants it.
+     */
+    default boolean alwaysAccessible() { return false; }
+
+    /**
+     * True for a module an administrator defined after installation (e.g. a "Staff Transport" department)
+     * rather than one shipped with the app. User-defined modules are active whenever they are registered:
+     * an industry-profile default or a System Modules override can't silently switch off a department the
+     * business built for itself. (Retiring one is done where it was defined, not via the profile.)
+     */
+    default boolean isUserDefined() { return false; }
+
+    /**
      * Called once when the module is first loaded by ModuleRegistry.
      * Use for one-time setup: ensuring DB tables exist, seeding data, etc.
      * Default: no-op.

@@ -249,7 +249,8 @@ public class InventoryView {
                 sell.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #1e293b;");
                 Label cost = new Label("Cost: " + KESFormatter.formatNumber(p.getCostPrice()));
                 cost.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
-                box.getChildren().addAll(sell, cost);
+                if (com.kaziflow.utils.PermissionGuard.allowsAction(com.kaziflow.services.SpecialPermissions.VIEW_COST_PRICE)) box.getChildren().addAll(sell, cost);
+                else box.getChildren().addAll(sell);
                 setGraphic(box);
                 setText(null);
             }
@@ -374,6 +375,9 @@ public class InventoryView {
         TextField skuField    = field("SKU", existing != null ? existing.getSku() : "");
         TextField priceField  = field("Selling Price (KES)", existing != null ? String.valueOf(existing.getSellingPrice()) : "");
         TextField costField   = field("Cost Price (KES)",  existing != null ? String.valueOf(existing.getCostPrice()) : "");
+        // Cost price is restricted by the view_cost_price special action: hidden, and never overwritten on save.
+        final boolean canCost = com.kaziflow.utils.PermissionGuard.allowsAction(com.kaziflow.services.SpecialPermissions.VIEW_COST_PRICE);
+        if (!canCost) { costField.setText(""); costField.setPromptText("Restricted"); costField.setDisable(true); }
         TextField stockField  = field("Stock Quantity",    existing != null ? String.valueOf((int)existing.getStockQuantity()) : "0");
         TextField minField    = field("Min Stock Level",   existing != null ? String.valueOf((int)existing.getMinStockLevel()) : "0");
         TextField unitField   = field("Unit (pcs/kg/bags)", existing != null ? existing.getUnit() : "pcs");
@@ -405,7 +409,7 @@ public class InventoryView {
                 p.setName(nameField.getText());
                 p.setSku(skuField.getText());
                 p.setSellingPrice(parseDouble(priceField.getText()));
-                p.setCostPrice(parseDouble(costField.getText()));
+                if (canCost) p.setCostPrice(parseDouble(costField.getText()));
                 p.setStockQuantity(parseDouble(stockField.getText()));
                 p.setMinStockLevel(parseDouble(minField.getText()));
                 p.setUnit(unitField.getText());

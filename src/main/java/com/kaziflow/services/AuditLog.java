@@ -74,7 +74,9 @@ public class AuditLog {
                 String recordHash = computeHash(prevHash, fUserId, fUserName, action, description, module, recordId, timestamp);
 
                 try (PreparedStatement ps = conn.prepareStatement(INSERT_SQL)) {
-                    ps.setInt(1, fUserId);
+                    // user_id references users(id): events with nobody signed in (e.g. a failed login) must store
+                    // NULL, not 0 — a 0 violates the foreign key and the whole row was silently dropped.
+                    if (fUserId > 0) ps.setInt(1, fUserId); else ps.setNull(1, Types.INTEGER);
                     ps.setString(2, fUserName);
                     ps.setString(3, action);
                     ps.setString(4, description);

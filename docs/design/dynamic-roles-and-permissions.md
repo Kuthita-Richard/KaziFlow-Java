@@ -169,3 +169,15 @@ Non-destructive, following the project's established additive-migration pattern:
 2. **UI placement:** Settings → Roles & Perms currently exists as a read-only list. Replace it with the group editor, or add a separate "Positions & Access" screen?
 3. **Naming:** "Permission Group" (Odoo's term) vs. "Position" (closer to your phrasing) vs. "Access Profile". This surfaces in the UI, so worth picking deliberately — I'd lean "Position" since it matches how you described the need and how a business owner actually thinks.
 4. **Granularity:** is per-module CRUD enough, or are there specific actions needing their own permission (e.g. "can apply discount", "can void a sale", "can view cost prices")? These are real POS concerns that don't map cleanly onto CRUD-per-module.
+
+---
+
+## Implementation status (v11.25 → v11.27)
+
+**Built and verified** (real SQLite + real JavaFX under Xvfb — `tools/checks/PermissionsCheck` 48, `PositionsAccessViewCheck` 19, `EnforcementCheck` 18):
+- §3.4 seeding & migration — `PermissionGroupSetup`: Administrator system group, special-action catalog, one-time role→Position migration (users keep the access their old role implied; manager-level roles also get the vertical modules and all special actions), **plus a break-glass self-heal** that restores an administrator at startup if none exists. (This piece was designed but had never been built before v11.27; on a real install `permission_groups` was empty.)
+- Lockout safety — every mutation in `PermissionAdminService` is transactional with an "≥1 active administrator-equivalent must remain" post-condition (covers un-assigning, deactivating, deleting a Position, and editing "implies"). A Position that *implies* Administrator counts as administrator-equivalent, in both the checker and the guard.
+- Live re-validation — `permissions_epoch` in `settings`, re-checked by `PermissionService` (default every 3 s), so edits reach logged-in users and other PCs without re-login (OWASP "re-validate long sessions").
+- Editor, user assignment (multi-Position), sidebar filter, `navigateTo` gate, landing logic, "no access" page, failed-login / access-denied audit events, and enforcement of the three seeded special actions (`view_cost_price` in Inventory, `apply_discount` = loyalty redemption in Sales, `void_sale` = returns/refunds in Sales).
+
+**Deviations from the original design** (deliberate): sidebar filtering is at read time in `ModuleRegistry`, not in `loadModules()`; the special-action catalog is a table (`permission_actions`) rather than constants; per-button Create/Write/Delete enforcement is NOT swept across every screen — `PermissionGuard` is the ready-made generic hook and Read (navigation) plus the special actions are enforced now.

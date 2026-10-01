@@ -136,16 +136,16 @@ public class SettingsView {
         }
 
         String[][] modules = {
-            {"◎", "Users & Access",       "Manage staff accounts, password resets, and login activity logs.", "12 Active Users",  "", "module_users"},
-            {"◈", "Roles & Perms",        "Configure granular access levels for Cashiers, Managers, Admins.", "5 Roles Defined",  "", "module_roles"},
-            {"⊙", "M-Pesa",               "Configure Daraja API, Paybill/Till numbers, and C2B webhooks.",   "Status: Connected","#16a34a","module_mpesa"},
+            {"◎", "Users & Access",       "Manage staff accounts, assign positions, reset passwords, and see recent access activity.", activeUsersStatus(),  "", "module_users"},
+            {"◈", "Positions & Access",   "Define positions (Cashier, Branch Manager...), choose what each can do in every module, and set special permissions.", positionsStatus(),  "", "module_roles"},
+            {"⊙", "M-Pesa",               "Configure Daraja API, Paybill/Till numbers, and C2B webhooks.",   mpesaStatus(), mpesaConfigured() ? "#16a34a" : "", "module_mpesa"},
             {"✉", "SMS (Africa's Talking)","Send receipts and reminders via SMS for customers without WhatsApp.",smsStatus,smsColor,"module_sms"},
             {"📧", "Email Receipts",       "Configure SMTP to send receipts directly to customer email addresses.",
                 com.kaziflow.services.EmailService.getInstance().isConfigured() ? "Configured" : "Not Configured",
                 com.kaziflow.services.EmailService.getInstance().isConfigured() ? "#16a34a" : "#94a3b8", "module_email"},
             {"🖧", "Network / Multi-Computer", "Share this database with other computers on the same network.",
                 com.kaziflow.network.NetworkConfig.getInstance().getMode().name(), "#2563eb", "module_network"},
-            {"⊞", "Tax Settings",         "VAT rates (16%), ETIMS configuration, and tax categories.",        "VAT: 16%",         "", "module_tax"},
+            {"⊞", "Tax Settings",         "VAT rate, ETIMS configuration, and tax categories.", vatStatus(), "", "module_tax"},
             {"🧾", "Payroll Tax Settings", "NSSF, SHIF, Housing Levy, NITA, and PAYE bands — every rate is "
                 + "editable here since Kenyan statutory rates change often.",
                 com.kaziflow.services.PayrollTaxConfig.getInstance().getPersonalReliefMonthly() == 2400
@@ -162,7 +162,7 @@ public class SettingsView {
                 "", "", "module_branches"},
             {"🏪", "Industry Profile",    "Change your business type to load the right modules and layout.",  profileName,        "#7c3aed", "module_industry"},
             {"✦",  "AI Assistant",        "Configure Claude API key for AI-powered business insights.",        "Set API Key →",    "#02a870", "module_ai"},
-            {"▣", "Data Management",      "Manual backups, restore points, and automated backup schedules.", "Last Backup: 2h",  "", "module_backup"},
+            {"▣", "Data Management",      "Manual backups, restore points, and automated backup schedules.", "Last backup: " + com.kaziflow.services.BackupService.getInstance().getLastBackupTime(),  "", "module_backup"},
             {"▤", "Audit Trail",          "View detailed system logs of all user actions and changes.",       "View Logs →",      "#2563eb","module_audit"},
             {"🌐","Language / Lugha",      "Switch between English and Kiswahili interface.",
                 com.kaziflow.utils.I18n.getInstance().isSwahili() ? "Kiswahili" : "English",
@@ -188,7 +188,7 @@ public class SettingsView {
 
     private VBox buildModuleCard(String icon, String title, String desc, String status, String statusColor, String settingKey) {
         // Read current enabled state from settings
-        boolean enabled = !"false".equals(settings.getOrDefault(settingKey + "_enabled", "true"));
+        final boolean enabled = true; // the old per-card Enabled/Disabled toggle saved a flag nothing read; real on/off is Settings → System Modules
 
         VBox card = new VBox(10);
         String baseStyle = "-fx-background-color:white;-fx-background-radius:12;-fx-border-color:#e2e8f0;-fx-border-radius:12;-fx-border-width:1;-fx-padding:20;-fx-cursor:hand;";
@@ -206,27 +206,7 @@ public class SettingsView {
         String statusFg = statusColor.isEmpty() ? "#94a3b8" : statusColor;
         Label statusLabel = new Label(status); statusLabel.setStyle("-fx-font-size:12px;-fx-text-fill:"+statusFg+";-fx-font-weight:bold;");
 
-        // Toggle button for system modules that can be enabled/disabled
-        if (settingKey.startsWith("module_") && !settingKey.equals("module_users") && !settingKey.equals("module_roles") && !settingKey.equals("module_audit")) {
-            ToggleButton toggle = new ToggleButton(enabled ? "Enabled" : "Disabled");
-            toggle.setSelected(enabled);
-            toggle.setStyle(enabled
-                ? "-fx-background-color:#dcfce7;-fx-text-fill:#16a34a;-fx-background-radius:20;-fx-border-color:transparent;-fx-font-size:11px;-fx-font-weight:bold;"
-                : "-fx-background-color:#fee2e2;-fx-text-fill:#dc2626;-fx-background-radius:20;-fx-border-color:transparent;-fx-font-size:11px;-fx-font-weight:bold;");
-            toggle.setOnAction(e -> {
-                boolean on = toggle.isSelected();
-                toggle.setText(on ? "Enabled" : "Disabled");
-                toggle.setStyle(on
-                    ? "-fx-background-color:#dcfce7;-fx-text-fill:#16a34a;-fx-background-radius:20;-fx-border-color:transparent;-fx-font-size:11px;-fx-font-weight:bold;"
-                    : "-fx-background-color:#fee2e2;-fx-text-fill:#dc2626;-fx-background-radius:20;-fx-border-color:transparent;-fx-font-size:11px;-fx-font-weight:bold;");
-                saveSetting(settingKey + "_enabled", String.valueOf(on));
-                settings.put(settingKey + "_enabled", String.valueOf(on));
-                card.setStyle(baseStyle + (on ? "" : "-fx-opacity:0.6;"));
-            });
-            card.getChildren().addAll(iconBox, titleLabel, descLabel, toggle);
-        } else {
-            card.getChildren().addAll(iconBox, titleLabel, descLabel, statusLabel);
-        }
+        card.getChildren().addAll(iconBox, titleLabel, descLabel, statusLabel);
 
         card.setOnMouseEntered(e -> card.setStyle(baseStyle + "-fx-border-color:#2563eb;" + (enabled?"":"-fx-opacity:0.6;")));
         card.setOnMouseExited(e  -> card.setStyle(baseStyle + (enabled?"":"-fx-opacity:0.6;")));
@@ -242,8 +222,8 @@ public class SettingsView {
                 stage.setScene(scene); stage.show();
             });
         }
-        if (title.equals("Roles & Perms")) {
-            card.setOnMouseClicked(e -> showRolesDialog());
+        if (title.equals("Positions & Access")) {
+            card.setOnMouseClicked(e -> PositionsAccessView.showDialog(card.getScene() != null ? card.getScene().getWindow() : null));
         }
         if (title.equals("Tax Settings")) {
             card.setOnMouseClicked(e -> showTaxSettingsDialog());
@@ -352,44 +332,13 @@ public class SettingsView {
             card.setOnMouseClicked(e -> showLicenseDialog());
         }
 
-        return card;
-    }
-
-    private void showRolesDialog() {
-        Dialog<ButtonType> d = new Dialog<>();
-        com.kaziflow.utils.DialogUtils.makeResizable(d);
-        d.setTitle("Roles & Permissions");
-        d.getDialogPane().setStyle("-fx-background-color:white;");
-        d.getDialogPane().setPrefWidth(520); d.getDialogPane().setPrefHeight(400);
-        javafx.scene.layout.VBox layout = new javafx.scene.layout.VBox(0);
-        javafx.scene.control.TableView<String[]> tv = new javafx.scene.control.TableView<>();
-        tv.setStyle("-fx-background-color:white;");
-        tv.setColumnResizePolicy(javafx.scene.control.TableView.CONSTRAINED_RESIZE_POLICY);
-        String[] cols = {"Role","Permissions","Created At"};
-        for (int i = 0; i < cols.length; i++) {
-            final int ci = i;
-            javafx.scene.control.TableColumn<String[],String> col = new javafx.scene.control.TableColumn<>(cols[i]);
-            col.setCellValueFactory(dd -> new javafx.beans.property.SimpleStringProperty(
-                ci < dd.getValue().length ? dd.getValue()[ci] : ""));
-            tv.getColumns().add(col);
+        // Settings are "the rules of the application": changing them needs Write access to the Settings module
+        // (Administrator always has it). A read-only viewer sees the cards but can't open them.
+        if (!com.kaziflow.utils.PermissionGuard.allowsModule("settings", com.kaziflow.services.PermissionService.Action.WRITE)) {
+            card.setDisable(true);
+            card.setOpacity(0.55);
         }
-        javafx.collections.ObservableList<String[]> data = javafx.collections.FXCollections.observableArrayList();
-        com.kaziflow.utils.AsyncTask.run(() -> {
-            java.util.List<String[]> rows = new java.util.ArrayList<>();
-            try (java.sql.Connection c = com.kaziflow.database.DatabaseManager.getInstance().getConnection();
-                 java.sql.Statement s = c.createStatement()) {
-                java.sql.ResultSet rs = s.executeQuery("SELECT name, permissions, created_at FROM roles ORDER BY id");
-                while (rs.next()) rows.add(new String[]{rs.getString("name"),
-                    rs.getString("permissions"), rs.getString("created_at")});
-            } catch (Exception e) { e.printStackTrace(); }
-            return rows;
-        }, data::setAll, err -> {});
-        tv.setItems(data);
-        VBox.setVgrow(tv, Priority.ALWAYS);
-        layout.getChildren().add(tv);
-        d.getDialogPane().setContent(layout);
-        d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        d.showAndWait();
+        return card;
     }
 
     private void showTaxSettingsDialog() {
@@ -1118,10 +1067,10 @@ public class SettingsView {
 
         GridPane form = new GridPane(); form.setHgap(12); form.setVgap(12); form.setPadding(new Insets(20));
         TextField keyField     = field("Consumer Key",    settings.getOrDefault("mpesa_consumer_key",""));
-        TextField secretField  = field("Consumer Secret", settings.getOrDefault("mpesa_consumer_secret",""));
+        PasswordField secretField  = secret("Consumer Secret", settings.getOrDefault("mpesa_consumer_secret",""));
         TextField tillField    = field("Till Number",     settings.getOrDefault("mpesa_till_number",""));
         TextField paybillField = field("Paybill Number",  settings.getOrDefault("mpesa_paybill",""));
-        TextField passkeyField = field("Passkey (leave blank for sandbox)", settings.getOrDefault("mpesa_passkey",""));
+        PasswordField passkeyField = secret("Passkey (leave blank for sandbox)", settings.getOrDefault("mpesa_passkey",""));
         ToggleButton sandboxToggle = new ToggleButton(!"false".equals(settings.getOrDefault("mpesa_sandbox","true"))?"Sandbox Mode":"Production Mode");
         sandboxToggle.setSelected(!"false".equals(settings.getOrDefault("mpesa_sandbox","true")));
         sandboxToggle.setStyle("-fx-background-color:#fef3c7;-fx-text-fill:#d97706;-fx-background-radius:6;-fx-border-color:transparent;");
@@ -1131,9 +1080,9 @@ public class SettingsView {
             sandboxToggle.setStyle(sb?"-fx-background-color:#fef3c7;-fx-text-fill:#d97706;-fx-background-radius:6;-fx-border-color:transparent;":"-fx-background-color:#dcfce7;-fx-text-fill:#16a34a;-fx-background-radius:6;-fx-border-color:transparent;");
         });
 
-        form.addRow(0, lbl("Consumer Key"),    keyField,     lbl("Consumer Secret"), secretField);
+        form.addRow(0, lbl("Consumer Key"),    keyField,     lbl("Consumer Secret"), com.kaziflow.utils.PasswordFieldUtils.withToggle(secretField));
         form.addRow(1, lbl("Till Number"),     tillField,    lbl("Paybill Number"),  paybillField);
-        form.addRow(2, lbl("Passkey"),         passkeyField, lbl("Environment"),     sandboxToggle);
+        form.addRow(2, lbl("Passkey"),         com.kaziflow.utils.PasswordFieldUtils.withToggle(passkeyField), lbl("Environment"),     sandboxToggle);
 
         VBox info = new VBox(4);
         Label hint = new Label("ℹ Get your credentials from Safaricom Developer Portal (developer.safaricom.co.ke)");
@@ -1166,7 +1115,7 @@ public class SettingsView {
 
         GridPane form = new GridPane(); form.setHgap(12); form.setVgap(12); form.setPadding(new Insets(20));
         TextField usernameField = field("Username (e.g. your app username)", settings.getOrDefault("at_username",""));
-        TextField apiKeyField   = field("API Key", settings.getOrDefault("at_api_key",""));
+        PasswordField apiKeyField   = secret("API Key", settings.getOrDefault("at_api_key",""));
         TextField senderField   = field("Sender ID / Shortcode (optional)", settings.getOrDefault("at_sender_id",""));
         ToggleButton sandboxToggle = new ToggleButton(!"false".equals(settings.getOrDefault("at_sandbox","true"))?"Sandbox Mode":"Production Mode");
         sandboxToggle.setSelected(!"false".equals(settings.getOrDefault("at_sandbox","true")));
@@ -1181,7 +1130,7 @@ public class SettingsView {
         if (sandboxToggle.isSelected()) { usernameField.setText("sandbox"); usernameField.setDisable(true); }
 
         form.addRow(0, lbl("Username"),  usernameField, lbl("Environment"), sandboxToggle);
-        form.addRow(1, lbl("API Key"),   apiKeyField,   lbl("Sender ID"),   senderField);
+        form.addRow(1, lbl("API Key"),   com.kaziflow.utils.PasswordFieldUtils.withToggle(apiKeyField),   lbl("Sender ID"),   senderField);
 
         VBox info = new VBox(4);
         Label hint = new Label("ℹ Get your credentials from africastalking.com — sandbox username is always \"sandbox\" " +
@@ -1298,6 +1247,42 @@ public class SettingsView {
             ps.setString(2, value);
             ps.executeUpdate();
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    /** Same look as {@link #field}, but masked — for API keys, secrets and passkeys. Wrap with PasswordFieldUtils.withToggle. */
+    private PasswordField secret(String prompt, String val) {
+        PasswordField pf = new PasswordField(); pf.setText(val); pf.setPromptText(prompt); pf.setPrefWidth(280);
+        pf.setStyle("-fx-pref-height: 34px; -fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 0 8;");
+        return pf;
+    }
+
+    // ── Real values for the card status lines (nothing here may be invented) ──
+
+    private String activeUsersStatus() {
+        long n = new com.kaziflow.dao.UserDAO().findAll().stream().filter(u -> "active".equalsIgnoreCase(u.getStatus())).count();
+        return n + (n == 1 ? " active user" : " active users");
+    }
+
+    private String positionsStatus() {
+        int n = com.kaziflow.services.PermissionAdminService.getInstance().listPositions().size();
+        return n + (n == 1 ? " position" : " positions");
+    }
+
+    private boolean mpesaConfigured() {
+        return !settings.getOrDefault("mpesa_consumer_key", "").isBlank()
+            && !settings.getOrDefault("mpesa_consumer_secret", "").isBlank();
+    }
+
+    private String mpesaStatus() {
+        if (!mpesaConfigured()) return "Not configured";
+        return "true".equals(settings.getOrDefault("mpesa_sandbox", "true")) ? "Configured (Sandbox)" : "Configured (Production)";
+    }
+
+    private String vatStatus() {
+        com.kaziflow.services.VATConfig vat = com.kaziflow.services.VATConfig.getInstance();
+        double pct = vat.getRatePercent();
+        String shown = pct == Math.rint(pct) ? String.valueOf((long) pct) : String.valueOf(pct);
+        return vat.isEnabled() ? "VAT: " + shown + "%" : "VAT off";
     }
 
     private TextField field(String prompt, String val) {

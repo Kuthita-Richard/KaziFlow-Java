@@ -60,7 +60,24 @@ public class SceneManager {
         primaryStage.setScene(scene);
         primaryStage.setMaximized(true);
         wireKeyboardShortcuts(scene);
-        navigateTo("dashboard");
+        // Land on the dashboard if this user may open it, otherwise the first module they can.
+        String landing = com.kaziflow.modules.ModuleRegistry.getInstance().getFirstAccessibleModuleId();
+        if (landing != null) navigateTo(landing); else showNoAccess();
+    }
+
+    /** Shown when a signed-in user has been given no access to anything (no Positions, or none that grant a module). */
+    private void showNoAccess() {
+        javafx.scene.control.Label title = new javafx.scene.control.Label("No access assigned yet");
+        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+        javafx.scene.control.Label body = new javafx.scene.control.Label(
+            "Your account isn't assigned to any Position that grants access to a module.\n"
+          + "Ask an administrator to assign you a Position in Settings → Users & Access.");
+        body.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13px; -fx-text-alignment: center;");
+        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(8, title, body);
+        box.setAlignment(javafx.geometry.Pos.CENTER);
+        javafx.scene.layout.StackPane pane = new javafx.scene.layout.StackPane(box);
+        pane.setStyle("-fx-background-color: #f8fafc;");
+        mainLayout.setContent(pane);
     }
 
     /** Show first-run industry profile selector. */
@@ -142,6 +159,11 @@ public class SceneManager {
         if (mainLayout == null) return;
 
         com.kaziflow.modules.ModuleRegistry reg = com.kaziflow.modules.ModuleRegistry.getInstance();
+
+        // Defense in depth: the sidebar already hides what a user can't open, but keyboard shortcuts
+        // (Ctrl+N etc.), dashboard quick-links and F5 all arrive here without going through it.
+        if (!reg.isAccessible(module)) { denyNavigation(module, reg); return; }
+
         boolean skipCache = reg.getNoCacheModules().contains(module);
 
         Region content;
@@ -153,6 +175,16 @@ public class SceneManager {
 
         mainLayout.setContent(content);
         mainLayout.setActiveNav(module);
+    }
+
+    private void denyNavigation(String module, com.kaziflow.modules.ModuleRegistry reg) {
+        if (reg.isEnabled(module)) {
+            // Enabled on this install, but this user's Positions don't grant it — an authorization event worth logging.
+            com.kaziflow.services.AuditLog.log("ACCESS_DENIED", "Blocked from opening module: " + module, module, null);
+            com.kaziflow.utils.Toast.warning(primaryStage, "You don't have access to that section.");
+        } else {
+            com.kaziflow.utils.Toast.info(primaryStage, "That module isn't enabled for this business (Settings → System Modules).");
+        }
     }
 
     // ── Public helpers ───────────────────────────────────────────────────

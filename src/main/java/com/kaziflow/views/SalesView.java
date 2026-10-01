@@ -239,6 +239,7 @@ public class SalesView {
                     Sale sale = getTableView().getItems().get(getIndex());
                     showReturnDialog(sale);
                 });
+                com.kaziflow.utils.PermissionGuard.requireAction(returnBtn, com.kaziflow.services.SpecialPermissions.VOID_SALE);
             }
             @Override protected void updateItem(Void v, boolean empty) {
                 super.updateItem(v, empty); setGraphic(empty ? null : box);
@@ -469,6 +470,7 @@ public class SalesView {
         Button redeemBtn = new Button("🎁 Redeem");
         redeemBtn.setStyle("-fx-background-color: white; -fx-border-color: #d97706; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: #d97706; -fx-font-size: 11px; -fx-cursor: hand; -fx-pref-height: 32px;");
         redeemBtn.setOnAction(e -> showRedeemPointsDialog());
+        com.kaziflow.utils.PermissionGuard.requireAction(redeemBtn, com.kaziflow.services.SpecialPermissions.APPLY_DISCOUNT);
 
         Button deliveryBtn = new Button("🚚 Delivery");
         deliveryBtn.setStyle("-fx-background-color: white; -fx-border-color: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: #2563eb; -fx-font-size: 11px; -fx-cursor: hand; -fx-pref-height: 32px;");

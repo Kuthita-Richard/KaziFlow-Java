@@ -283,6 +283,7 @@ public class LoginView {
                     }
                 } else {
                     showError("Invalid email or password. Please try again.");
+                    com.kaziflow.services.AuditLog.log("LOGIN_FAILED", "Failed sign-in attempt for " + email, "auth", null);
                     passwordField.clear();
                     com.kaziflow.utils.PasswordFieldUtils.setRevealed(passwordField, false);
                 }

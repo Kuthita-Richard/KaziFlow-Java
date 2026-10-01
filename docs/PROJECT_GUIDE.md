@@ -96,6 +96,14 @@ v11.21: ~76 dialogs across 43 files each hand-built their own title/style/width 
 
 Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(pf)` — build the field as usual, put the **returned node** in the layout, keep reading `pf.getText()`. Don't hand-roll a per-screen reveal button. Use `PasswordFieldUtils.requestFocus(pf)` (not `pf.requestFocus()`) to move focus programmatically, since the hidden half of the pair can't take focus. **New password fields should use this.**
 
+### 4.7 Permissions — Positions, `PermissionService`, `PermissionGuard` (v11.25–v11.27)
+
+- **Check access through ONE generic engine:** `PermissionService.can(moduleId, Action)` and `canPerform(actionKey)`. Never add a method per feature. Navigation is gated centrally in `SceneManager.navigateTo()` (via `ModuleRegistry.isAccessible`); controls are greyed with `PermissionGuard.requireAction/requireModule`.
+- **New special action?** Register a row (`SpecialPermissions.register`) — the Positions editor shows a checkbox automatically — and **wire at least one real check**; a catalog entry nothing enforces is the "settings UI that saves data nothing reads" bug.
+- **New module?** Nothing to do for permissions: it appears in the Positions editor from `ModuleRegistry.getAllAvailableModules()`. New modules are default-deny; Administrator always has access.
+- **All permission edits go through `PermissionAdminService`** (one transaction + "an active administrator must remain" post-condition; bumps `permissions_epoch`, which `PermissionService` re-validates every ~3 s so edits reach logged-in users and other PCs).
+- Sidebar is filtered at READ time in `ModuleRegistry` (not in `loadModules()`, which runs once before anyone logs in).
+
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
 - ✅ Currency, Payroll tax (all statutory rates), VAT, Delivery pricing (per-km + named overrides), which modules are active per installation
 - ❌ **Loyalty points earn-rate** — hardcoded "1 point per KES 100 spent" in `SalesView`. Same treatment as VAT/payroll would apply here; flagged, not yet built.
@@ -137,11 +145,15 @@ These are real, current requests from the project owner — not this document's 
 
 ### 7.1 Dynamic roles & permissions (replacing fixed "admin/super admin" tiers)
 
+> **STATUS (v11.25–v11.27): BUILT.** Positions & Access editor, per-user multi-Position assignment, enforcement (sidebar, `navigateTo`, special actions), seeding/migration with break-glass self-heal, lockout safety. See `docs/design/dynamic-roles-and-permissions.md` (implementation status at the bottom) and §4.7 below.
+
 Explicit direction: rather than hardcoded admin/super-admin roles, **access level, permissions, and priority should be set dynamically** — when a user is assigned a position, they (or an admin) choose/are assigned exactly the modules and permissions that position needs, rather than the system assuming a fixed hierarchy.
 
 **Explicitly requested: research how Odoo implements this**, since Odoo is a mature, widely-used open-source ERP with exactly this kind of flexible, per-user/per-group access model (Odoo uses "Groups" — arbitrary, composable permission sets assigned per user per app/module, rather than a fixed role ladder). This research has not yet been done as of this writing — **do this before designing KaziFlow's version**, since re-deriving the same design from scratch without looking at a proven model would be wasted effort.
 
 ### 7.2 Custom module builder ("admin-defined modules")
+
+> **STATUS (v11.27): feasibility proven, design written, not built.** See `docs/design/custom-modules.md` — recommended approach is JSON documents in one generic table + metadata tables + expression indexes (no per-field `ALTER TABLE`), verified on the bundled SQLite 3.44.1. The registry hook (`ModuleRegistry.registerModule`, `Module.isUserDefined`) already exists.
 
 Direct request, paraphrased: *"we need a place where modules can be written/created/defined — if a company adds a department not in the module packages provided by the system, they can define their own: name it, define what data it holds, and calculations if needed."*
 
@@ -222,12 +234,12 @@ Every branch shares the same active modules. A group running a pharmacy, a clini
 **5. No group-level roll-up reporting.**
 The memo shows monthly consolidated reporting to a Group General Manager spanning both financial and clinical metrics across all facilities. Nothing in KaziFlow aggregates across installations or branches today.
 
-**6. Fixed admin/user role model.**
+**6. Fixed admin/user role model.** **RESOLVED in v11.27** — Positions replace it (§7.1).
 No way to define a position and assign it a specific set of modules and permissions. This is §7.1's requested work — and §8.3 supplies the design principle from the reference: self-service is **a permissions filter over shared data**, not a separate set of duplicated screens.
 
 ### Tier 3 — Real, but narrower in blast radius
 
-**7. No custom module builder** — §7.2. Admin-defined modules with their own fields and calculations. Needs a dedicated design discussion; the central open question is dynamic schema generation vs. a flexible generic storage model (EAV/JSON), which has real tradeoffs either way.
+**7. No custom module builder** — §7.2. Admin-defined modules with their own fields and calculations. Needs a dedicated design discussion; the central open question is dynamic schema generation vs. a flexible generic storage model (EAV/JSON), which has real tradeoffs either way. **Feasibility + design done (v11.27): `docs/design/custom-modules.md`.**
 
 **8. Country-specific reporting formats are not swappable.** `VATConfig`/`PayrollTaxConfig` made the *rates* dynamic (§4), but statutory *report formats* (ETIMS, MoH-style returns) remain Kenya-shaped in code. §8.5.
 
@@ -253,6 +265,12 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Dynamic config services | `services/CurrencyService.java`, `services/PayrollTaxConfig.java`, `services/VATConfig.java` |
 | Shared dialog construction | `utils/DialogUtils.java` |
 | Password show/hide toggle | `utils/PasswordFieldUtils.java` |
+| Permission checks (read side) | `services/PermissionService.java`, `services/PermissionResolver.java` |
+| Permission edits + lockout safety | `services/PermissionAdminService.java` |
+| Permission seeding / legacy migration / break-glass | `services/PermissionGroupSetup.java` |
+| Special-action catalog | `services/SpecialPermissions.java` (table `permission_actions`) |
+| Positions & Access editor | `views/PositionsAccessView.java` |
+| Greying controls by permission | `utils/PermissionGuard.java` |
 | Sandbox compile/test tooling | `tools/sandbox-verify.sh`, `tools/checks/*` |
 | POS / checkout | `views/SalesView.java`, `dao/SaleDAO.java` |
 | Payroll | `views/PayrollView.java`, `dao/PayrollDAO.java` |
@@ -271,3 +289,14 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 ## 12. Full Detailed History
 
 Every version from the original upload (v9) onward has its own dated entry in `docs/changelog/`, each documenting exactly what changed, where, and — for real bugs — how they were found and verified. `docs/changelog/README.md` is the index. This guide is the map; the changelog is the territory. When in doubt about *why* something is built a certain way, check there before assuming.
+
+---
+
+## 11. Known issues found during v11.27 (not fixed — flagged for decision)
+
+- **`mvn test` has not compiled since v11.18:** `PayrollDAOTest` still tests `PayrollDAO.calculateNHIF`, removed when NHIF became SHIF. With that one file excluded, the suite runs 233 tests and **25 fail on pristine v11.25 too** (stale expectations: "exactly 19 profiles" vs 22, "core modules" lists, `KESFormatter` null/billions cases, `normalizePhone(null)`). CI would be red. These need a decision per test: update the expectation or fix the code.
+- **`ReportsView` (~line 88) shows invented figures:** `netProfit > 0 ? netProfit : 1800000` and a fallback 42% margin — fabricated fallbacks, the §5 bug class.
+- **AI Assistant panel is not permission-gated:** a user without Finance access could still ask it about financial data.
+- **Own position changes** show in the sidebar after the next sign-in (permissions themselves refresh within seconds).
+- **System Modules list will show user-defined modules** once the builder exists, but toggling one has no effect (`isUserDefined`); the dialog should skip them.
+

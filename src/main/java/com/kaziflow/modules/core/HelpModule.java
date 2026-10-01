@@ -10,5 +10,6 @@ public class HelpModule implements Module {
     @Override public String getLabel()    { return com.kaziflow.utils.I18n.t("nav.help"); }
     @Override public boolean noCache()    { return true; }
     @Override public boolean isBottomNav(){ return true; }
+    @Override public boolean alwaysAccessible() { return true; }
     @Override public Region buildView()   { return new HelpView().getRoot(); }
 }

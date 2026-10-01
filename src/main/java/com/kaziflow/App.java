@@ -93,6 +93,20 @@ public class App extends Application {
         // 4. Initialize ModuleRegistry — loads industry profile + enabled modules
         ModuleRegistry.getInstance().init();
 
+        // 4b. Permissions: seed the Administrator position + special-action catalog, migrate legacy roles
+        // once, and self-heal if no active administrator exists. Idempotent, so safe on every start.
+        // A CLIENT PC skips it — the server it connects to owns (and has already seeded) that data.
+        if (com.kaziflow.network.NetworkConfig.getInstance().getMode() != com.kaziflow.network.NetworkConfig.Mode.CLIENT) {
+            try (java.sql.Connection permConn = DatabaseManager.getInstance().getConnection()) {
+                java.util.List<String> moduleIds = ModuleRegistry.getInstance().getAllAvailableModules().stream()
+                    .map(com.kaziflow.modules.Module::getId).toList();
+                com.kaziflow.services.PermissionGroupSetup.seed(permConn, moduleIds);
+            } catch (Exception e) {
+                System.err.println("[Permissions] Seeding failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
         // 5. Schedule daily auto-backup
         com.kaziflow.services.BackupService.getInstance().scheduleDailyBackup();
 

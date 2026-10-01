@@ -2,6 +2,12 @@ package com.kaziflow.views;
 
 import com.kaziflow.dao.UserDAO;
 import com.kaziflow.models.User;
+import com.kaziflow.services.AuditLog;
+import com.kaziflow.services.PermissionAdminService;
+import com.kaziflow.services.PermissionAdminService.PermissionAdminException;
+import com.kaziflow.services.PermissionAdminService.Position;
+import com.kaziflow.services.PermissionService;
+import com.kaziflow.utils.SessionManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -11,14 +17,46 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 
-import java.util.List;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 
+/**
+ * User Management ("Users & Access"). Every number and list on this screen is computed from the
+ * database — earlier versions showed invented figures (made-up role counts, a fake activity feed,
+ * a fake licence cap). A user now holds one or more POSITIONS (see PositionsAccessView) instead of a
+ * single hardcoded role.
+ */
 public class UserManagementView {
+
+    /** Badge palette {text, background}; a position's colour is derived from its name, so new positions just work. */
+    private static final String[][] PALETTE = {
+        {"#7c3aed", "#ede9fe"}, {"#2563eb", "#eff6ff"}, {"#16a34a", "#dcfce7"},
+        {"#d97706", "#fef3c7"}, {"#0891b2", "#e0f2fe"}, {"#db2777", "#fce7f3"}, {"#475569", "#f1f5f9"}
+    };
+    /** Audit actions that belong on an "access & security" feed. */
+    private static final Set<String> ACTIVITY_ACTIONS = Set.of(
+        "USER_LOGIN", "LOGIN_FAILED", "USER_CREATED", "USER_UPDATED", "USER_ACCESS_CHANGED", "PASSWORD_CHANGED",
+        "POSITION_CREATED", "POSITION_UPDATED", "POSITION_DELETED", "ACCESS_DENIED");
+    private static final DateTimeFormatter LOGIN_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
     private VBox root;
     private TableView<User> table;
-    private ObservableList<User> data = FXCollections.observableArrayList();
+    private final ObservableList<User> data = FXCollections.observableArrayList();
     private final UserDAO userDAO = new UserDAO();
+    private final PermissionAdminService access = PermissionAdminService.getInstance();
+    private final boolean editable =
+        PermissionService.getInstance().isAdministrator() || PermissionService.getInstance().canWrite("settings");
+
+    private List<User> allUsers = new ArrayList<>();
+    private Map<Integer, List<String>> positionsByUser = new HashMap<>();
+    private String searchText = "";
+    private String positionFilter = null;   // null = all
+    private String statusFilter = null;     // null = all
+
+    private HBox statsRow;
+    private VBox rightPanelHolder;
 
     public UserManagementView() { buildUI(); }
 
@@ -31,9 +69,7 @@ public class UserManagementView {
         HBox topbar = buildTopBar();
         VBox content = new VBox(20);
         content.setPadding(new Insets(24));
-
-        HBox mainRow = buildMainRow();
-        content.getChildren().add(mainRow);
+        content.getChildren().add(buildMainRow());
         root.getChildren().addAll(topbar, content);
         loadData();
     }
@@ -52,6 +88,7 @@ public class UserManagementView {
 
         Button addBtn = new Button("+ Add New User");
         addBtn.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-height: 38px; -fx-padding: 0 18; -fx-cursor: hand; -fx-font-size: 13px;");
+        addBtn.setDisable(!editable);
         addBtn.setOnAction(e -> showAddEditDialog(null));
 
         bar.getChildren().addAll(titleBox, sp, addBtn);
@@ -61,53 +98,79 @@ public class UserManagementView {
     private HBox buildMainRow() {
         HBox row = new HBox(20);
 
-        // ── Left: user table ──
         VBox tableSection = new VBox(16);
         HBox.setHgrow(tableSection, Priority.ALWAYS);
 
-        // Stat cards
-        HBox stats = new HBox(16);
-        int total = userDAO.getTotalCount();
-        stats.getChildren().addAll(
-            statCard("Total Users", String.valueOf(total), "+2 this month", "#1e293b"),
-            statCard("Active Now", "—", "Online Now", "#16a34a"),
-            statCard("Pending Requests", "0", "Needs Approval", "#d97706"),
-            statCard("Licenses Used", total + "/30", "Standard Plan", "#7c3aed")
-        );
-        for (var c : stats.getChildren()) HBox.setHgrow((Region)c, Priority.ALWAYS);
+        statsRow = new HBox(16);
 
-        // Filter bar
         HBox filterBar = new HBox(10); filterBar.setAlignment(Pos.CENTER_LEFT);
         TextField search = new TextField();
-        search.setPromptText("Search by name, email, or role...");
+        search.setPromptText("Search by name or email...");
         search.getStyleClass().add("search-box");
         search.setPrefWidth(280);
-        search.textProperty().addListener((obs,o,v) -> data.setAll(v.isBlank() ? userDAO.findAll() : userDAO.findAll().stream().filter(u -> u.getName().toLowerCase().contains(v.toLowerCase()) || u.getEmail().toLowerCase().contains(v.toLowerCase())).toList()));
+        search.textProperty().addListener((obs, o, v) -> { searchText = v == null ? "" : v.trim().toLowerCase(); applyFilters(); });
 
-        ComboBox<String> roleFilter = new ComboBox<>();
-        roleFilter.getItems().addAll("Filter by Role", "Administrator", "Store Manager", "Cashier", "Warehouse Staff", "Accountant");
-        roleFilter.setValue("Filter by Role"); roleFilter.setPrefHeight(36);
+        // Filter lists come from the database, so new positions appear here with no code change.
+        ComboBox<String> positionBox = new ComboBox<>();
+        positionBox.getItems().add("All positions");
+        for (Position p : access.listPositions()) positionBox.getItems().add(p.name());
+        positionBox.setValue("All positions"); positionBox.setPrefHeight(36);
+        positionBox.setOnAction(e -> { positionFilter = "All positions".equals(positionBox.getValue()) ? null : positionBox.getValue(); applyFilters(); });
 
-        ComboBox<String> statusFilter = new ComboBox<>();
-        statusFilter.getItems().addAll("Status: All", "Active", "Inactive", "Suspended");
-        statusFilter.setValue("Status: All"); statusFilter.setPrefHeight(36);
+        ComboBox<String> statusBox = new ComboBox<>();
+        statusBox.getItems().addAll("Status: All", "Active", "Inactive", "Suspended");
+        statusBox.setValue("Status: All"); statusBox.setPrefHeight(36);
+        statusBox.setOnAction(e -> { String v = statusBox.getValue(); statusFilter = "Status: All".equals(v) ? null : v.toLowerCase(); applyFilters(); });
 
-        filterBar.getChildren().addAll(search, roleFilter, statusFilter);
+        filterBar.getChildren().addAll(search, positionBox, statusBox);
 
-        // Table
         VBox tableCard = new VBox(0);
         tableCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1;");
         table = buildTable();
         tableCard.getChildren().add(table);
 
-        tableSection.getChildren().addAll(stats, filterBar, tableCard);
+        tableSection.getChildren().addAll(statsRow, filterBar, tableCard);
 
-        // ── Right: role distribution + activity ──
-        VBox rightPanel = buildRightPanel();
-        rightPanel.setPrefWidth(280);
+        rightPanelHolder = new VBox();
+        rightPanelHolder.setPrefWidth(290);
 
-        row.getChildren().addAll(tableSection, rightPanel);
+        row.getChildren().addAll(tableSection, rightPanelHolder);
         return row;
+    }
+
+    // ── data ──────────────────────────────────────────────────────────────
+
+    private void loadData() {
+        allUsers = userDAO.findAll();
+        positionsByUser = access.positionNamesByUser();
+        applyFilters();
+        rebuildStats();
+        rightPanelHolder.getChildren().setAll(buildRightPanel());
+    }
+
+    private void applyFilters() {
+        data.setAll(allUsers.stream().filter(u -> {
+            if (!searchText.isEmpty()
+                && !u.getName().toLowerCase().contains(searchText)
+                && !u.getEmail().toLowerCase().contains(searchText)) return false;
+            if (statusFilter != null && !statusFilter.equalsIgnoreCase(u.getStatus())) return false;
+            if (positionFilter != null && !positionsByUser.getOrDefault(u.getId(), List.of()).contains(positionFilter)) return false;
+            return true;
+        }).toList());
+    }
+
+    private void rebuildStats() {
+        long active = allUsers.stream().filter(u -> "active".equalsIgnoreCase(u.getStatus())).count();
+        long blocked = allUsers.size() - active;
+        int admins = access.countActiveAdmins();
+        int positions = access.listPositions().size();
+        statsRow.getChildren().setAll(
+            statCard("Total Users", String.valueOf(allUsers.size()), active + " active", "#1e293b"),
+            statCard("Administrators", String.valueOf(admins), "active admin accounts", "#7c3aed"),
+            statCard("Inactive / Suspended", String.valueOf(blocked), "can't sign in", blocked > 0 ? "#d97706" : "#16a34a"),
+            statCard("Positions", String.valueOf(positions), "access bundles defined", "#2563eb")
+        );
+        for (var c : statsRow.getChildren()) HBox.setHgrow((Region) c, Priority.ALWAYS);
     }
 
     private VBox statCard(String label, String value, String note, String color) {
@@ -120,26 +183,29 @@ public class UserManagementView {
         return card;
     }
 
+    // ── table ─────────────────────────────────────────────────────────────
+
     @SuppressWarnings("unchecked")
     private TableView<User> buildTable() {
         TableView<User> tv = new TableView<>();
         tv.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tv.setPrefHeight(420);
         tv.setStyle("-fx-background-color: white;");
+        tv.setPlaceholder(new Label("No users match."));
 
-        // User Details
-        TableColumn<User,String> userCol = new TableColumn<>("USER DETAILS");
+        TableColumn<User, String> userCol = new TableColumn<>("USER DETAILS");
         userCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getName()));
         userCol.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(String n, boolean empty) {
                 super.updateItem(n, empty);
-                if(empty||n==null){setGraphic(null);return;}
+                if (empty || n == null) { setGraphic(null); return; }
                 User u = getTableView().getItems().get(getIndex());
+                List<String> pos = positionsByUser.getOrDefault(u.getId(), List.of());
                 HBox row = new HBox(10); row.setAlignment(Pos.CENTER_LEFT);
                 StackPane avatar = new StackPane();
                 Circle circle = new Circle(18);
-                circle.setFill(Color.web(roleColor(u.getRoleName())));
-                Label init = new Label(u.getName().isEmpty()?"?":String.valueOf(u.getName().charAt(0)).toUpperCase());
+                circle.setFill(Color.web(colorsFor(pos.isEmpty() ? "" : pos.get(0))[0]));
+                Label init = new Label(u.getName().isEmpty() ? "?" : String.valueOf(u.getName().charAt(0)).toUpperCase());
                 init.setStyle("-fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold;");
                 avatar.getChildren().addAll(circle, init);
                 VBox info = new VBox(1);
@@ -149,141 +215,182 @@ public class UserManagementView {
                 row.getChildren().addAll(avatar, info);
                 setGraphic(row); setText(null);
             }
-        }); userCol.setPrefWidth(200);
+        });
+        userCol.setPrefWidth(200);
+        userCol.setMinWidth(170);
 
-        // Role
-        TableColumn<User,String> roleCol = new TableColumn<>("ROLE");
-        roleCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getRoleName()));
-        roleCol.setCellFactory(c -> new TableCell<>() {
-            @Override protected void updateItem(String role, boolean empty) {
-                super.updateItem(role, empty);
-                if(empty||role==null){setGraphic(null);return;}
-                Label badge = new Label(role);
-                badge.setStyle("-fx-background-color: " + roleBg(role) + "; -fx-text-fill: " + roleColor(role) + "; -fx-font-size: 11px; -fx-background-radius: 20; -fx-padding: 3 10; -fx-font-weight: bold;");
-                setGraphic(badge); setText(null);
+        TableColumn<User, String> posCol = new TableColumn<>("POSITIONS");
+        posCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(String.join(", ", positionsByUser.getOrDefault(d.getValue().getId(), List.of()))));
+        posCol.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                if (empty) { setGraphic(null); setText(null); return; }
+                User u = getTableView().getItems().get(getIndex());
+                List<String> pos = positionsByUser.getOrDefault(u.getId(), List.of());
+                FlowPane badges = new FlowPane(4, 4);
+                if (pos.isEmpty()) {
+                    Label none = new Label("No access");
+                    none.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 11px; -fx-font-weight: bold;");
+                    badges.getChildren().add(none);
+                }
+                for (String p : pos) {
+                    String[] col = colorsFor(p);
+                    Label badge = new Label(p);
+                    badge.setStyle("-fx-background-color: " + col[1] + "; -fx-text-fill: " + col[0] + "; -fx-font-size: 11px; -fx-background-radius: 20; -fx-padding: 3 10; -fx-font-weight: bold;");
+                    badges.getChildren().add(badge);
+                }
+                setGraphic(badges); setText(null);
             }
-        }); roleCol.setPrefWidth(150);
+        });
+        posCol.setPrefWidth(190);
 
-        // Email
-        TableColumn<User,String> emailCol = new TableColumn<>("EMAIL ADDRESS");
+        TableColumn<User, String> emailCol = new TableColumn<>("EMAIL ADDRESS");
         emailCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getEmail()));
-        emailCol.setPrefWidth(200);
+        emailCol.setPrefWidth(190);
 
-        // Status
-        TableColumn<User,String> statusCol = new TableColumn<>("STATUS");
+        TableColumn<User, String> statusCol = new TableColumn<>("STATUS");
         statusCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getStatus()));
         statusCol.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(String s, boolean empty) {
                 super.updateItem(s, empty);
-                if(empty||s==null){setGraphic(null);return;}
-                String color = switch(s) {
+                if (empty || s == null) { setGraphic(null); return; }
+                String color = switch (s) {
                     case "active"    -> "#16a34a";
                     case "suspended" -> "#dc2626";
                     default          -> "#94a3b8";
                 };
-                Label lbl = new Label("● " + s.substring(0,1).toUpperCase() + s.substring(1));
+                Label lbl = new Label("● " + s.substring(0, 1).toUpperCase() + s.substring(1));
                 lbl.setStyle("-fx-text-fill: " + color + "; -fx-font-size: 12px; -fx-font-weight: bold;");
                 setGraphic(lbl); setText(null);
             }
-        }); statusCol.setPrefWidth(100);
+        });
+        statusCol.setPrefWidth(100);
 
-        // Last Login
-        TableColumn<User,String> lastLoginCol = new TableColumn<>("LAST LOGIN");
-        lastLoginCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty("—"));
-        lastLoginCol.setPrefWidth(130);
+        TableColumn<User, String> lastLoginCol = new TableColumn<>("LAST LOGIN");
+        lastLoginCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(
+            d.getValue().getLastLogin() == null ? "Never" : d.getValue().getLastLogin().format(LOGIN_FMT)));
+        lastLoginCol.setPrefWidth(140);
 
-        // Actions
-        TableColumn<User,Void> actCol = new TableColumn<>("ACTIONS"); actCol.setPrefWidth(80);
+        TableColumn<User, Void> actCol = new TableColumn<>("ACTIONS"); actCol.setPrefWidth(80);
         actCol.setCellFactory(c -> new TableCell<>() {
             private final Button editBtn = new Button("✎");
             private final Button pwBtn = new Button("🔑");
             private final HBox box = new HBox(6, editBtn, pwBtn);
             {
-                for (Button b : new Button[]{editBtn, pwBtn})
+                for (Button b : new Button[]{editBtn, pwBtn}) {
                     b.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a3b8; -fx-cursor: hand; -fx-font-size: 13px; -fx-border-color: transparent; -fx-padding: 2;");
+                    b.setDisable(!editable);
+                }
                 editBtn.setOnAction(e -> showAddEditDialog(getTableView().getItems().get(getIndex())));
                 pwBtn.setOnAction(e -> showChangePasswordDialog(getTableView().getItems().get(getIndex())));
             }
-            @Override protected void updateItem(Void v, boolean empty) { super.updateItem(v,empty); setGraphic(empty?null:box); }
+            @Override protected void updateItem(Void v, boolean empty) { super.updateItem(v, empty); setGraphic(empty ? null : box); }
         });
 
-        tv.getColumns().addAll(userCol, roleCol, emailCol, statusCol, lastLoginCol, actCol);
+        tv.getColumns().addAll(userCol, posCol, emailCol, statusCol, lastLoginCol, actCol);
         tv.setItems(data);
         return tv;
     }
 
+    // ── right panel: real distribution + real activity ────────────────────
+
     private VBox buildRightPanel() {
         VBox panel = new VBox(16);
 
-        // Role distribution card
-        VBox roleCard = new VBox(12);
-        roleCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 20;");
-        Label roleTitle = new Label("Role Distribution"); roleTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
-        roleCard.getChildren().add(roleTitle);
+        VBox posCard = new VBox(12);
+        posCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 20;");
+        Label posTitle = new Label("Position Distribution"); posTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+        posCard.getChildren().add(posTitle);
 
-        String[][] roles = {{"Cashiers", "12", "#2563eb"}, {"Store Managers", "4", "#16a34a"}, {"Administrators", "2", "#7c3aed"}, {"Warehouse Staff", "6", "#d97706"}};
-        for (String[] r : roles) {
+        List<Position> positions = access.listPositions();
+        int totalUsers = Math.max(1, allUsers.size());
+        if (positions.isEmpty()) {
+            Label none = new Label("No positions defined yet.");
+            none.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+            posCard.getChildren().add(none);
+        }
+        for (Position p : positions) {
             VBox rRow = new VBox(4);
             HBox top = new HBox();
-            Label name = new Label(r[0]); name.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b;");
+            Label name = new Label(p.name()); name.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b;");
             Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
-            Label count = new Label(r[1] + " users"); count.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+            Label count = new Label(p.memberCount() + (p.memberCount() == 1 ? " user" : " users")); count.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
             top.getChildren().addAll(name, sp, count);
-            ProgressBar pb = new ProgressBar(Double.parseDouble(r[1]) / 24.0);
+            ProgressBar pb = new ProgressBar((double) p.memberCount() / totalUsers);
             pb.setMaxWidth(Double.MAX_VALUE);
-            pb.setStyle("-fx-accent: " + r[2] + ";");
+            pb.setStyle("-fx-accent: " + colorsFor(p.name())[0] + ";");
             rRow.getChildren().addAll(top, pb);
-            roleCard.getChildren().add(rRow);
+            posCard.getChildren().add(rRow);
         }
 
-        Button manageRolesBtn = new Button("Manage Roles & Permissions");
-        manageRolesBtn.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 34px; -fx-cursor: hand; -fx-font-size: 12px;");
-        manageRolesBtn.setMaxWidth(Double.MAX_VALUE);
-        manageRolesBtn.setOnAction(e -> com.kaziflow.utils.SceneManager.getInstance().navigateTo("settings"));
-        roleCard.getChildren().add(manageRolesBtn);
+        Button manageBtn = new Button("Manage Positions & Access");
+        manageBtn.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 34px; -fx-cursor: hand; -fx-font-size: 12px;");
+        manageBtn.setMaxWidth(Double.MAX_VALUE);
+        manageBtn.setOnAction(e -> {
+            PositionsAccessView.showDialog(root.getScene() != null ? root.getScene().getWindow() : null);
+            loadData(); // positions may have been added, renamed or deleted
+        });
+        posCard.getChildren().add(manageBtn);
 
-        // Activity card
         VBox actCard = new VBox(12);
         actCard.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 20;");
-        HBox actHeader = new HBox();
-        Label actTitle = new Label("Recent Activity"); actTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
-        Region sp2 = new Region(); HBox.setHgrow(sp2, Priority.ALWAYS);
-        Hyperlink viewAll = new Hyperlink("View All"); viewAll.setStyle("-fx-text-fill: #2563eb; -fx-font-size: 12px;");
-        actHeader.getChildren().addAll(actTitle, sp2, viewAll);
-        actCard.getChildren().add(actHeader);
+        Label actTitle = new Label("Recent Access Activity"); actTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+        actCard.getChildren().add(actTitle);
 
-        String[][] activities = {
-            {"👤", "New User Added", "Admin added John Doe", "7 min ago", "#eff6ff", "#2563eb"},
-            {"🔒", "Role Updated", "Mercy promoted to Manager", "45 min ago", "#ede9fe", "#7c3aed"},
-            {"⚠", "Failed Login", "Suspicious login for Sarah W.", "3 hrs ago", "#fee2e2", "#dc2626"},
-            {"💾", "System Backup", "Automated daily backup", "5 hrs ago", "#dcfce7", "#16a34a"}
-        };
+        List<String[]> events = new ArrayList<>();
+        for (String[] log : AuditLog.getRecentLogs(300)) {           // {user, action, description, module, created_at}
+            if (ACTIVITY_ACTIONS.contains(log[1])) events.add(log);
+            if (events.size() == 6) break;
+        }
+        if (events.isEmpty()) {
+            Label none = new Label("Nothing recorded yet. Sign-ins, failed sign-ins and access changes appear here.");
+            none.setWrapText(true);
+            none.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+            actCard.getChildren().add(none);
+        }
+        for (String[] ev : events) {
+            boolean bad = ev[1].equals("LOGIN_FAILED") || ev[1].equals("ACCESS_DENIED");
+            boolean accessEv = ev[1].startsWith("POSITION_") || ev[1].equals("USER_ACCESS_CHANGED");
+            String bg = bad ? "#fee2e2" : accessEv ? "#ede9fe" : "#eff6ff";
+            String icon = bad ? "⚠" : accessEv ? "🔒" : "👤";
 
-        for (String[] a : activities) {
             HBox actRow = new HBox(10); actRow.setAlignment(Pos.TOP_LEFT);
             actRow.setPadding(new Insets(6, 0, 6, 0));
             actRow.setStyle("-fx-border-color: transparent transparent #f1f5f9 transparent; -fx-border-width: 0 0 1 0;");
-
             StackPane iconBox = new StackPane();
-            iconBox.setStyle("-fx-background-color: " + a[4] + "; -fx-background-radius: 8; -fx-min-width: 32; -fx-min-height: 32;");
-            Label icon = new Label(a[0]); icon.setStyle("-fx-font-size: 13px;");
-            iconBox.getChildren().add(icon);
-
+            iconBox.setStyle("-fx-background-color: " + bg + "; -fx-background-radius: 8; -fx-min-width: 32; -fx-min-height: 32;");
+            iconBox.getChildren().add(new Label(icon));
             VBox info = new VBox(1);
-            Label evtTitle = new Label(a[1]); evtTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #1e293b;");
-            Label desc = new Label(a[2]); desc.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px; -fx-wrap-text: true;"); desc.setWrapText(true);
-            Label time = new Label(a[3]); time.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 10px;");
+            Label evtTitle = new Label(humanize(ev[1])); evtTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #1e293b;");
+            Label desc = new Label(ev[2]); desc.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;"); desc.setWrapText(true);
+            desc.setMaxWidth(200); desc.setMinHeight(Region.USE_PREF_SIZE); // wrap, don't clip with "..."
+            Label time = new Label(timeAgo(ev[4]) + (ev[0] == null || ev[0].equals("system") ? "" : "  ·  " + ev[0])); time.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 10px;");
             info.getChildren().addAll(evtTitle, desc, time);
-
             actRow.getChildren().addAll(iconBox, info);
             actCard.getChildren().add(actRow);
         }
 
-        panel.getChildren().addAll(roleCard, actCard);
+        panel.getChildren().addAll(posCard, actCard);
         return panel;
     }
 
-    private void loadData() { data.setAll(userDAO.findAll()); }
+    private static String humanize(String action) {
+        String s = action.toLowerCase().replace('_', ' ');
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    private static String timeAgo(String iso) {
+        try {
+            LocalDateTime t = LocalDateTime.parse(iso.trim().replace(' ', 'T'));
+            long mins = Duration.between(t, LocalDateTime.now()).toMinutes();
+            if (mins < 1) return "just now";
+            if (mins < 60) return mins + " min ago";
+            if (mins < 60 * 24) return (mins / 60) + " hr ago";
+            return (mins / (60 * 24)) + " d ago";
+        } catch (Exception e) { return iso == null ? "" : iso; }
+    }
+
+    // ── add / edit ────────────────────────────────────────────────────────
 
     private void showAddEditDialog(User existing) {
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -291,58 +398,112 @@ public class UserManagementView {
         dialog.setTitle(existing == null ? "Add New User" : "Edit User");
         dialog.setHeaderText(null);
         dialog.getDialogPane().setStyle("-fx-background-color: white;");
-        dialog.getDialogPane().setPrefWidth(440);
+        dialog.getDialogPane().setPrefWidth(480);
 
         GridPane form = new GridPane();
         form.setHgap(12); form.setVgap(12); form.setPadding(new Insets(20));
 
-        TextField nameField  = field("Full Name", existing != null ? existing.getName() : "");
+        TextField nameField = field("Full Name", existing != null ? existing.getName() : "");
         TextField emailField = field("Email Address", existing != null ? existing.getEmail() : "");
         PasswordField pwField = new PasswordField();
-        pwField.setPromptText(existing != null ? "Leave blank to keep current" : "Password");
+        pwField.setPromptText(existing != null ? "Leave blank to keep current" : "At least 6 characters");
         pwField.setStyle("-fx-pref-height: 34px; -fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 0 8;");
-
-        ComboBox<String> roleCombo = new ComboBox<>();
-        roleCombo.getItems().addAll("1:Administrator", "2:Store Manager", "3:Cashier", "4:Warehouse Staff", "5:Accountant");
-        roleCombo.setPrefWidth(200);
-        if (existing != null) roleCombo.getItems().forEach(item -> { if(item.startsWith(existing.getRoleId() + ":")) roleCombo.setValue(item); });
-        if (roleCombo.getValue() == null && !roleCombo.getItems().isEmpty()) roleCombo.setValue(roleCombo.getItems().get(2));
 
         ComboBox<String> statusCombo = new ComboBox<>();
         statusCombo.getItems().addAll("active", "inactive", "suspended");
         statusCombo.setValue(existing != null ? existing.getStatus() : "active");
 
+        // Positions: one checkbox per position in the database (a person can hold several).
+        Set<Integer> current = existing != null ? access.getUserPositions(existing.getId()) : Set.of();
+        Map<Integer, CheckBox> posBoxes = new LinkedHashMap<>();
+        VBox posList = new VBox(6);
+        for (Position p : access.listPositions()) {
+            CheckBox cb = new CheckBox(p.name() + (p.system() ? "  (full access)" : ""));
+            cb.setSelected(current.contains(p.id()));
+            posBoxes.put(p.id(), cb);
+            posList.getChildren().add(cb);
+        }
+        ScrollPane posScroll = new ScrollPane(posList);
+        posScroll.setFitToWidth(true);
+        posScroll.setPrefHeight(150);
+        posScroll.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6;");
+        Label posNote = new Label();
+        posNote.setWrapText(true);
+        Runnable updateNote = () -> {
+            boolean any = posBoxes.values().stream().anyMatch(CheckBox::isSelected);
+            posNote.setText(any ? "Access is the combination of everything these positions grant."
+                                : "No position selected: this person can sign in but won't be able to open anything.");
+            posNote.setStyle("-fx-font-size: 11px; -fx-text-fill: " + (any ? "#94a3b8" : "#d97706") + ";");
+        };
+        posBoxes.values().forEach(cb -> cb.selectedProperty().addListener((o, a, b) -> updateNote.run()));
+        updateNote.run();
+
         form.addRow(0, lbl("Full Name"), nameField);
         form.addRow(1, lbl("Email Address"), emailField);
         form.addRow(2, lbl("Password"), com.kaziflow.utils.PasswordFieldUtils.withToggle(pwField));
-        form.addRow(3, lbl("Role"), roleCombo, lbl("Status"), statusCombo);
+        form.addRow(3, lbl("Status"), statusCombo);
+        form.addRow(4, lbl("Positions"), posScroll);
+        form.add(posNote, 1, 5);
 
         dialog.getDialogPane().setContent(form);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 
-        dialog.showAndWait().ifPresent(result -> {
-            if (result == ButtonType.OK) {
-                User u = existing != null ? existing : new User();
-                u.setName(nameField.getText().trim());
-                u.setEmail(emailField.getText().trim());
-                u.setStatus(statusCombo.getValue());
-                if (!roleCombo.getValue().isEmpty()) {
-                    String[] parts = roleCombo.getValue().split(":");
-                    try { u.setRoleId(Integer.parseInt(parts[0])); } catch (Exception ignored) {}
-                }
-                boolean ok;
-                if (existing == null) {
-                    u.setPasswordHash(pwField.getText().isEmpty() ? "changeme123" : pwField.getText());
-                    ok = userDAO.save(u);
-                    if (ok) com.kaziflow.services.AuditLog.logUserCreated(u.getName());
-                } else {
-                    ok = userDAO.update(u);
-                    if (!pwField.getText().isEmpty()) userDAO.updatePassword(u.getId(), pwField.getText());
-                    if (ok) com.kaziflow.services.AuditLog.log("USER_UPDATED","User updated: "+u.getName(),"settings",u.getId());
-                }
-                if (ok) loadData();
-            }
+        // Validate BEFORE closing, so a mistake keeps the dialog (and what was typed) on screen.
+        Button okBtn = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okBtn.addEventFilter(javafx.event.ActionEvent.ACTION, ev -> {
+            String err = validate(existing, nameField.getText(), emailField.getText(), pwField.getText(), statusCombo.getValue());
+            if (err != null) { error(err); ev.consume(); }
         });
+
+        dialog.showAndWait().ifPresent(result -> {
+            if (result != ButtonType.OK) return;
+            Set<Integer> selected = new LinkedHashSet<>();
+            posBoxes.forEach((id, cb) -> { if (cb.isSelected()) selected.add(id); });
+            saveUser(existing, nameField.getText().trim(), emailField.getText().trim(), pwField.getText(), statusCombo.getValue(), selected);
+        });
+    }
+
+    private String validate(User existing, String name, String email, String password, String status) {
+        if (name == null || name.isBlank()) return "Please enter the person's name.";
+        if (email == null || !email.trim().matches("[^@\\s]+@[^@\\s]+")) return "Please enter a valid email address.";
+        if (existing == null && (password == null || password.length() < 6)) return "Please set a password of at least 6 characters.";
+        if (existing != null && !password.isEmpty() && password.length() < 6) return "A new password must be at least 6 characters.";
+        boolean selfDeactivate = existing != null && SessionManager.getInstance().getCurrentUser() != null
+            && SessionManager.getInstance().getCurrentUser().getId() == existing.getId() && !"active".equals(status);
+        if (selfDeactivate) return "You can't deactivate the account you're signed in with.";
+        for (User u : allUsers) {
+            if (u.getEmail().equalsIgnoreCase(email.trim()) && (existing == null || u.getId() != existing.getId()))
+                return "Another user already has that email address.";
+        }
+        return null;
+    }
+
+    private void saveUser(User existing, String name, String email, String password, String status, Set<Integer> positions) {
+        try {
+            if (existing == null) {
+                User u = new User();
+                u.setName(name); u.setEmail(email); u.setStatus(status);
+                u.setPasswordHash(password);                       // hashed by UserDAO.save
+                u.setRoleId(access.legacyRoleIdFor(positions));    // legacy NOT NULL column only; Positions decide access
+                if (!userDAO.save(u)) { error("The user could not be saved (is that email already in use?)."); return; }
+                int id = userDAO.findIdByEmail(email);
+                if (id > 0) access.saveUserAccess(id, positions, null);
+                AuditLog.logUserCreated(name);
+            } else {
+                // Positions/status first: if it would leave no administrator it throws and nothing else is changed.
+                access.saveUserAccess(existing.getId(), positions, status);
+                existing.setName(name); existing.setEmail(email); existing.setStatus(status);
+                if (!userDAO.update(existing)) { error("The user could not be updated."); return; }
+                if (!password.isEmpty()) {
+                    userDAO.updatePassword(existing.getId(), password);
+                    AuditLog.log("PASSWORD_CHANGED", "Password changed for " + name, "settings", existing.getId());
+                }
+                AuditLog.log("USER_UPDATED", "User updated: " + name, "settings", existing.getId());
+            }
+            loadData();
+        } catch (PermissionAdminException ex) {
+            error(ex.getMessage());
+        }
     }
 
     private void showChangePasswordDialog(User user) {
@@ -364,49 +525,31 @@ public class UserManagementView {
 
         dialog.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
-                if (!newPw.getText().equals(confirmPw.getText())) {
-                    Alert err = new Alert(Alert.AlertType.ERROR, "Passwords do not match.", ButtonType.OK);
-                    com.kaziflow.utils.DialogUtils.makeResizable(err);
-                    err.setHeaderText(null); err.show(); return;
-                }
-                if (newPw.getText().length() < 6) {
-                    Alert err = new Alert(Alert.AlertType.ERROR, "Password must be at least 6 characters.", ButtonType.OK);
-                    com.kaziflow.utils.DialogUtils.makeResizable(err);
-                    err.setHeaderText(null); err.show(); return;
-                }
+                if (!newPw.getText().equals(confirmPw.getText())) { error("Passwords do not match."); return; }
+                if (newPw.getText().length() < 6) { error("Password must be at least 6 characters."); return; }
                 if (userDAO.updatePassword(user.getId(), newPw.getText())) {
+                    AuditLog.log("PASSWORD_CHANGED", "Password changed for " + user.getName(), "settings", user.getId());
                     Alert ok = new Alert(Alert.AlertType.INFORMATION, "Password changed successfully.", ButtonType.OK);
                     com.kaziflow.utils.DialogUtils.makeResizable(ok);
                     ok.setHeaderText(null); ok.show();
+                    loadData();
                 }
             }
         });
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    // ── helpers ───────────────────────────────────────────────────────────
 
-    private String roleColor(String role) {
-        if (role == null) return "#475569";
-        return switch (role) {
-            case "Administrator"  -> "#7c3aed";
-            case "Store Manager"  -> "#2563eb";
-            case "Cashier"        -> "#16a34a";
-            case "Warehouse Staff"-> "#d97706";
-            case "Accountant"     -> "#0891b2";
-            default               -> "#475569";
-        };
+    private static String[] colorsFor(String positionName) {
+        if (positionName == null || positionName.isEmpty()) return PALETTE[PALETTE.length - 1];
+        return PALETTE[Math.floorMod(positionName.hashCode(), PALETTE.length - 1)];
     }
 
-    private String roleBg(String role) {
-        if (role == null) return "#f1f5f9";
-        return switch (role) {
-            case "Administrator"  -> "#ede9fe";
-            case "Store Manager"  -> "#eff6ff";
-            case "Cashier"        -> "#dcfce7";
-            case "Warehouse Staff"-> "#fef3c7";
-            case "Accountant"     -> "#e0f2fe";
-            default               -> "#f1f5f9";
-        };
+    private void error(String msg) {
+        Alert err = new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(err);
+        err.setHeaderText(null);
+        err.showAndWait();
     }
 
     private TextField field(String prompt, String val) {

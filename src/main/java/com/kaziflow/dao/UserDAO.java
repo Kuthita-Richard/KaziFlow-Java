@@ -95,6 +95,16 @@ public class UserDAO {
         } catch (SQLException e) { e.printStackTrace(); }
     }
 
+    /** Id of the user with this email, or -1. Needed after save() since it doesn't return the new row's id. */
+    public int findIdByEmail(String email) {
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement("SELECT id FROM users WHERE email = ?")) {
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return -1;
+    }
+
     public int getTotalCount() {
         try (Connection conn = getConn(); Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users");
@@ -112,6 +122,10 @@ public class UserDAO {
         u.setRoleName(rs.getString("role_name"));
         u.setPermissions(rs.getString("permissions"));
         u.setStatus(rs.getString("status"));
+        try { // last_login is stored as an ISO timestamp (see updateLastLogin); tolerate SQL-style too
+            String ll = rs.getString("last_login");
+            if (ll != null && !ll.isBlank()) u.setLastLogin(LocalDateTime.parse(ll.trim().replace(' ', 'T')));
+        } catch (Exception ignored) { }
         return u;
     }
 }

@@ -140,7 +140,7 @@ public class BackupService {
         File[] backups = listBackups();
         if (backups.length == 0) return "Never";
         long lastMod = backups[0].lastModified();
-        LocalDateTime time = LocalDateTime.ofEpochSecond(lastMod / 1000, 0, java.time.ZoneOffset.UTC);
+        LocalDateTime time = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(lastMod), java.time.ZoneId.systemDefault());
         return time.format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"));
     }
 

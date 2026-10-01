@@ -61,6 +61,9 @@ public class ModuleRegistry {
         new HelpModule()
     );
 
+    /** CORE_MODULES plus anything added at run time via {@link #registerModule(Module)}. */
+    private final List<Module> allModules = new ArrayList<>(CORE_MODULES);
+
     private ModuleRegistry() {}
 
     public static ModuleRegistry getInstance() {
@@ -88,13 +91,14 @@ public class ModuleRegistry {
     private void loadModules() {
         activeModules.clear();
         Set<String> overrides = loadModuleOverrides();
-        for (Module m : CORE_MODULES) {
+        for (Module m : allModules) {
             // An override list, when present, takes precedence over the profile's default
             // module list entirely — this is what actually lets someone running (for example)
             // a CUSTOM healthcare business with a pharmacy + clinic + nursing home under one
             // roof turn on exactly the modules they need, rather than being stuck with
             // whichever single IndustryProfile's fixed list happens to be closest.
-            boolean enabled = (overrides != null) ? overrides.contains(m.getId()) : activeProfile.hasModule(m.getId());
+            boolean enabled = m.isUserDefined()
+                || ((overrides != null) ? overrides.contains(m.getId()) : activeProfile.hasModule(m.getId()));
             if (enabled) {
                 try {
                     m.onLoad();
@@ -139,6 +143,7 @@ public class ModuleRegistry {
     public List<Module> getNavModules() {
         return activeModules.values().stream()
             .filter(m -> !m.isBottomNav())
+            .filter(this::isAccessible)
             .toList();
     }
 
@@ -148,7 +153,52 @@ public class ModuleRegistry {
     public List<Module> getBottomNavModules() {
         return activeModules.values().stream()
             .filter(Module::isBottomNav)
+            .filter(this::isAccessible)
             .toList();
+    }
+
+    // ── Permission-aware access ───────────────────────────────────────────
+    //
+    // Filtering happens here, at READ time, per current user — NOT inside loadModules().
+    // loadModules() runs once at startup before anyone has logged in (and activeModules is
+    // shared by every user of this process), so baking permissions into it would freeze the
+    // first user's view for everyone after a logout/login.
+
+    /** True if the module is enabled on this installation AND the signed-in user may open it. */
+    public boolean isAccessible(String moduleId) {
+        Module m = activeModules.get(moduleId);
+        return m != null && isAccessible(m);
+    }
+
+    private boolean isAccessible(Module m) {
+        if (m.alwaysAccessible()) return com.kaziflow.utils.SessionManager.getInstance().isLoggedIn();
+        return com.kaziflow.services.PermissionService.getInstance().canRead(m.getId());
+    }
+
+    /**
+     * Where to land after login: the dashboard if allowed, else the first module in sidebar order
+     * the user can open. Null means the user has no access to anything (show a "no access" page).
+     */
+    public String getFirstAccessibleModuleId() {
+        if (isAccessible("dashboard")) return "dashboard";
+        // Modules open to everyone (Help) don't count as somewhere to land: a user who has been given
+        // nothing should see the "no access assigned" page, not be dropped into Help.
+        for (Module m : getNavModules()) if (!m.alwaysAccessible()) return m.getId();
+        for (Module m : getBottomNavModules()) if (!m.alwaysAccessible()) return m.getId();
+        return null;
+    }
+
+    /**
+     * Plug in a module at run time (e.g. one an administrator has built). It immediately shows up in
+     * getAllAvailableModules(), so the Positions & Access editor offers it with no further work;
+     * a user-defined module ({@link Module#isUserDefined()}) is also active straight away; a shipped one is
+     * switched on via Settings → System Modules. Returns false if the id is taken.
+     */
+    public boolean registerModule(Module module) {
+        for (Module m : allModules) if (m.getId().equals(module.getId())) return false;
+        allModules.add(module);
+        if (initialized) loadModules();
+        return true;
     }
 
     /**
@@ -179,7 +229,7 @@ public class ModuleRegistry {
      * want" settings screen.
      */
     public List<Module> getAllAvailableModules() {
-        return CORE_MODULES;
+        return Collections.unmodifiableList(allModules);
     }
 
     /** Currently-active module ids, as a plain set — used to pre-check the toggle UI. */
