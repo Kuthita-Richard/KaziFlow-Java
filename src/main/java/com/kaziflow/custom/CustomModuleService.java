@@ -36,7 +36,17 @@ public final class CustomModuleService {
     public record EntityDef(int id, int moduleId, String key, String label, String pluralLabel, Integer titleFieldId, int sortOrder) {}
     public record FieldDef(int id, int entityId, String label, FieldType type, boolean required, String defaultValue,
                            List<String> choices, Integer lookupEntityId, String formula, String unit,
-                           boolean showInList, boolean searchable, int sortOrder, boolean archived) {
+                           boolean showInList, boolean searchable, int sortOrder, boolean archived,
+                           Double minValue, Double maxValue, String validationMessage) {
+        /** Without validation rules (the original shape). */
+        public FieldDef(int id, int entityId, String label, FieldType type, boolean required, String defaultValue,
+                        List<String> choices, Integer lookupEntityId, String formula, String unit,
+                        boolean showInList, boolean searchable, int sortOrder, boolean archived) {
+            this(id, entityId, label, type, required, defaultValue, choices, lookupEntityId, formula, unit,
+                 showInList, searchable, sortOrder, archived, null, null, null);
+        }
+        /** True when a min/max rule can apply: numbers bound the value, text bounds its length. */
+        public boolean supportsRange() { return type.isNumeric() || type == FieldType.TEXT || type == FieldType.LONG_TEXT; }
         /** Immutable key under which values are stored in a record's JSON. */
         public String key() { return "f_" + id; }
     }
@@ -109,14 +119,43 @@ public final class CustomModuleService {
                     deleted_at TEXT
                 )""");
             s.execute("CREATE INDEX IF NOT EXISTS ix_custom_records_entity ON custom_records (entity_id, deleted_at)");
+            s.execute("""
+                CREATE TABLE IF NOT EXISTS custom_views (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entity_id INTEGER NOT NULL REFERENCES custom_entities(id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    definition TEXT NOT NULL CHECK (json_valid(definition)),
+                    created_by INTEGER,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(entity_id, name)
+                )""");
         }
+        // Additive migration for databases created before validation rules existed.
+        addColumnIfMissing(c, "custom_fields", "min_value", "REAL");
+        addColumnIfMissing(c, "custom_fields", "max_value", "REAL");
+        addColumnIfMissing(c, "custom_fields", "validation_message", "TEXT");
     }
 
-    private Connection conn() throws SQLException {
+    private static void addColumnIfMissing(Connection c, String table, String column, String type) throws SQLException {
+        try (Statement s = c.createStatement(); ResultSet rs = s.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) if (column.equalsIgnoreCase(rs.getString("name"))) return;
+        }
+        try (Statement s = c.createStatement()) { s.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type); }
+    }
+
+    private static volatile boolean schemaReady = false;
+
+    /**
+     * A database connection with the custom-module tables guaranteed to exist. The (idempotent but not free)
+     * schema check runs once per process, not once per call — every list, lookup and report opens a connection.
+     */
+    static Connection openConnection() throws SQLException {
         Connection c = DatabaseManager.getInstance().getConnection();
-        ensureSchema(c);
+        if (!schemaReady) { ensureSchema(c); schemaReady = true; }
         return c;
     }
+
+    private Connection conn() throws SQLException { return openConnection(); }
 
     // ── modules ───────────────────────────────────────────────────────────
 
@@ -267,11 +306,13 @@ public final class CustomModuleService {
 
     // ── fields ────────────────────────────────────────────────────────────
 
+    private static final String FIELD_COLS = "id, entity_id, label, type, required, default_value, choices, lookup_entity_id, formula, unit, "
+            + "show_in_list, searchable, sort_order, archived, min_value, max_value, validation_message";
+
     public List<FieldDef> listFields(int entityId, boolean includeArchived) {
         List<FieldDef> out = new ArrayList<>();
         try (Connection c = conn(); PreparedStatement ps = c.prepareStatement(
-                "SELECT id, entity_id, label, type, required, default_value, choices, lookup_entity_id, formula, unit, "
-                        + "show_in_list, searchable, sort_order, archived FROM custom_fields WHERE entity_id = ? "
+                "SELECT " + FIELD_COLS + " FROM custom_fields WHERE entity_id = ? "
                         + (includeArchived ? "" : "AND archived = 0 ") + "ORDER BY sort_order, id")) {
             ps.setInt(1, entityId);
             ResultSet rs = ps.executeQuery();
@@ -282,8 +323,7 @@ public final class CustomModuleService {
 
     public FieldDef getField(int id) {
         try (Connection c = conn(); PreparedStatement ps = c.prepareStatement(
-                "SELECT id, entity_id, label, type, required, default_value, choices, lookup_entity_id, formula, unit, "
-                        + "show_in_list, searchable, sort_order, archived FROM custom_fields WHERE id = ?")) {
+                "SELECT " + FIELD_COLS + " FROM custom_fields WHERE id = ?")) {
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery();
             return rs.next() ? mapField(rs) : null;
@@ -298,7 +338,13 @@ public final class CustomModuleService {
         if (ch != null && !ch.isBlank()) for (String x : ch.split("\n")) if (!x.isBlank()) choices.add(x.trim());
         return new FieldDef(rs.getInt(1), rs.getInt(2), rs.getString(3), FieldType.valueOf(rs.getString(4)),
                 rs.getInt(5) == 1, rs.getString(6), choices, lookupId, rs.getString(9), rs.getString(10),
-                rs.getInt(11) == 1, rs.getInt(12) == 1, rs.getInt(13), rs.getInt(14) == 1);
+                rs.getInt(11) == 1, rs.getInt(12) == 1, rs.getInt(13), rs.getInt(14) == 1,
+                nullableDouble(rs, 15), nullableDouble(rs, 16), rs.getString(17));
+    }
+
+    private static Double nullableDouble(ResultSet rs, int col) throws SQLException {
+        double v = rs.getDouble(col);
+        return rs.wasNull() ? null : v;
     }
 
     /** Adds a field. {@code draft.id()} is ignored. For CALC, {@code formula} is in KEY form ({f_12}). */
@@ -309,13 +355,14 @@ public final class CustomModuleService {
         if (draft.type() == FieldType.LOOKUP && (draft.lookupEntityId() == null || getEntity(draft.lookupEntityId()) == null))
             throw new CustomModuleException("Pick which kind of record this field links to.");
         if (draft.type() == FieldType.CALC) validateFormula(draft.entityId(), draft.formula(), -1);
+        checkRange(draft.minValue(), draft.maxValue());
         try (Connection c = conn()) {
             if (exists(c, "SELECT 1 FROM custom_fields WHERE entity_id = ? AND archived = 0 AND LOWER(label) = LOWER(?)",
                     draft.entityId(), draft.label().trim()))
                 throw new CustomModuleException("This entity already has a field called \"" + draft.label().trim() + "\".");
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO custom_fields (entity_id, label, type, required, default_value, choices, lookup_entity_id, formula, "
-                            + "unit, show_in_list, searchable, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?, "
+                            + "unit, show_in_list, searchable, min_value, max_value, validation_message, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, "
                             + "(SELECT COALESCE(MAX(sort_order),0)+10 FROM custom_fields WHERE entity_id = ?))")) {
                 ps.setInt(1, draft.entityId()); ps.setString(2, draft.label().trim()); ps.setString(3, draft.type().name());
                 ps.setInt(4, draft.required() && draft.type() != FieldType.CALC ? 1 : 0);
@@ -324,7 +371,11 @@ public final class CustomModuleService {
                 if (draft.lookupEntityId() == null) ps.setNull(7, Types.INTEGER); else ps.setInt(7, draft.lookupEntityId());
                 ps.setString(8, draft.formula()); ps.setString(9, draft.unit());
                 ps.setInt(10, draft.showInList() ? 1 : 0); ps.setInt(11, draft.searchable() ? 1 : 0);
-                ps.setInt(12, draft.entityId());
+                boolean rules = draft.supportsRange();
+                setNullableDouble(ps, 12, rules ? draft.minValue() : null);
+                setNullableDouble(ps, 13, rules ? draft.maxValue() : null);
+                ps.setString(14, rules ? blankToNull(draft.validationMessage()) : null);
+                ps.setInt(15, draft.entityId());
                 ps.executeUpdate();
             }
             int id = scalar(c, "SELECT MAX(id) FROM custom_fields WHERE entity_id = ?", draft.entityId());
@@ -340,11 +391,22 @@ public final class CustomModuleService {
         } catch (SQLException e) { throw db(e); }
     }
 
-    /** Edits everything except the field's type and link target (those are fixed once data may exist). */
+    /** Same as the full overload, leaving the field's existing validation rule unchanged. */
     public void updateField(int id, String label, boolean required, String defaultValue, List<String> choices,
                             String formula, String unit, boolean showInList, boolean searchable) throws CustomModuleException {
         FieldDef f = getField(id);
         if (f == null) throw new CustomModuleException("That field no longer exists.");
+        updateField(id, label, required, defaultValue, choices, formula, unit, showInList, searchable,
+                f.minValue(), f.maxValue(), f.validationMessage());
+    }
+
+    /** Edits everything except the field's type and link target (those are fixed once data may exist). */
+    public void updateField(int id, String label, boolean required, String defaultValue, List<String> choices,
+                            String formula, String unit, boolean showInList, boolean searchable,
+                            Double minValue, Double maxValue, String validationMessage) throws CustomModuleException {
+        FieldDef f = getField(id);
+        if (f == null) throw new CustomModuleException("That field no longer exists.");
+        checkRange(minValue, maxValue);
         requireLabel(label, "field");
         if (f.type() == FieldType.CHOICE && choices.isEmpty()) throw new CustomModuleException("A choice field needs at least one option.");
         if (f.type() == FieldType.CALC) validateFormula(f.entityId(), formula, id);
@@ -353,12 +415,17 @@ public final class CustomModuleService {
                     f.entityId(), id, label.trim()))
                 throw new CustomModuleException("This entity already has a field called \"" + label.trim() + "\".");
             try (PreparedStatement ps = c.prepareStatement(
-                    "UPDATE custom_fields SET label=?, required=?, default_value=?, choices=?, formula=?, unit=?, show_in_list=?, searchable=? WHERE id=?")) {
+                    "UPDATE custom_fields SET label=?, required=?, default_value=?, choices=?, formula=?, unit=?, show_in_list=?, searchable=?, "
+                            + "min_value=?, max_value=?, validation_message=? WHERE id=?")) {
                 ps.setString(1, label.trim());
                 ps.setInt(2, required && f.type() != FieldType.CALC ? 1 : 0);
                 ps.setString(3, defaultValue); ps.setString(4, String.join("\n", choices));
                 ps.setString(5, formula); ps.setString(6, unit);
-                ps.setInt(7, showInList ? 1 : 0); ps.setInt(8, searchable ? 1 : 0); ps.setInt(9, id);
+                ps.setInt(7, showInList ? 1 : 0); ps.setInt(8, searchable ? 1 : 0);
+                setNullableDouble(ps, 9, f.supportsRange() ? minValue : null);
+                setNullableDouble(ps, 10, f.supportsRange() ? maxValue : null);
+                ps.setString(11, f.supportsRange() ? blankToNull(validationMessage) : null);
+                ps.setInt(12, id);
                 ps.executeUpdate();
             }
             if (searchable) ensureIndex(c, f.entityId(), id); else dropIndex(c, id);
@@ -495,6 +562,17 @@ public final class CustomModuleService {
         if (s.isEmpty() || !Character.isLetter(s.charAt(0))) s = "e_" + s;
         return s.length() > 30 ? s.substring(0, 30) : s;
     }
+
+    private static void checkRange(Double min, Double max) throws CustomModuleException {
+        if (min != null && max != null && min > max)
+            throw new CustomModuleException("The smallest allowed value can't be bigger than the largest.");
+    }
+
+    private static void setNullableDouble(PreparedStatement ps, int idx, Double v) throws SQLException {
+        if (v == null) ps.setNull(idx, Types.REAL); else ps.setDouble(idx, v);
+    }
+
+    private static String blankToNull(String s) { return s == null || s.isBlank() ? null : s.trim(); }
 
     private static void requireLabel(String label, String what) throws CustomModuleException {
         if (label == null || label.isBlank()) throw new CustomModuleException("Please give the " + what + " a name.");

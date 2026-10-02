@@ -49,24 +49,14 @@ public final class CustomRecordService {
 
     private final CustomModuleService defs = CustomModuleService.getInstance();
 
-    private Connection conn() throws SQLException {
-        Connection c = DatabaseManager.getInstance().getConnection();
-        CustomModuleService.ensureSchema(c);
-        return c;
-    }
+    private Connection conn() throws SQLException { return CustomModuleService.openConnection(); }
 
     // ── create / update / delete ──────────────────────────────────────────
 
     /** @param input field key -> raw value (String/Number/Boolean/LookupOption...); calculated fields are ignored. */
     public long create(int entityId, Map<String, Object> input, int userId) throws CustomModuleException {
         EntityDef entity = requireEntity(entityId);
-        List<FieldDef> fields = defs.listFields(entityId, false);
-        JsonObject doc = new JsonObject();
-        for (FieldDef f : fields) {
-            if (f.type() == FieldType.CALC) continue;
-            Object raw = input.containsKey(f.key()) ? input.get(f.key()) : defaultFor(f);
-            put(doc, f, raw);
-        }
+        JsonObject doc = buildDoc(defs.listFields(entityId, false), input);
         try (Connection c = conn()) {
             boolean prev = c.getAutoCommit();
             c.setAutoCommit(false);
@@ -88,6 +78,66 @@ public final class CustomRecordService {
         } catch (SQLException e) { throw new CustomModuleException("Database error: " + e.getMessage(), e); }
     }
 
+    /** Validates every field and builds the stored document (defaults applied). Throws on the first problem. */
+    private JsonObject buildDoc(List<FieldDef> fields, Map<String, Object> input) throws CustomModuleException {
+        return buildDoc(fields, input, null);
+    }
+
+    /** {@code linkCache} remembers which link targets were already confirmed to exist (batches check each only once). */
+    private JsonObject buildDoc(List<FieldDef> fields, Map<String, Object> input, Map<String, Boolean> linkCache) throws CustomModuleException {
+        JsonObject doc = new JsonObject();
+        for (FieldDef f : fields) {
+            if (f.type() == FieldType.CALC) continue;
+            Object raw = input.containsKey(f.key()) ? input.get(f.key()) : defaultFor(f);
+            put(doc, f, raw, linkCache);
+        }
+        return doc;
+    }
+
+    /** Dry run: the problem with this input, or null if it would be accepted. Writes nothing. */
+    public String check(int entityId, Map<String, Object> input) {
+        try { buildDoc(defs.listFields(entityId, false), input); return null; }
+        catch (CustomModuleException e) { return e.getMessage(); }
+    }
+
+    /** Dry run for many rows: pass the same {@code fields} and {@code linkCache} for each so nothing is re-read per row. */
+    public String check(List<FieldDef> fields, Map<String, Object> input, Map<String, Boolean> linkCache) {
+        try { buildDoc(fields, input, linkCache); return null; }
+        catch (CustomModuleException e) { return e.getMessage(); }
+    }
+
+    /**
+     * Creates many records in ONE transaction (all or nothing) with a single audit entry — used by CSV import.
+     * Every row is validated first, so a bad row stops the whole batch before anything is written.
+     */
+    public int createBatch(int entityId, List<Map<String, Object>> inputs, int userId) throws CustomModuleException {
+        EntityDef entity = requireEntity(entityId);
+        List<FieldDef> fields = defs.listFields(entityId, false);
+        List<String> docs = new ArrayList<>();
+        Map<String, Boolean> linkCache = new HashMap<>();
+        int n = 0;
+        for (Map<String, Object> in : inputs) {
+            n++;
+            try { docs.add(buildDoc(fields, in, linkCache).toString()); }
+            catch (CustomModuleException e) { throw new CustomModuleException("Row " + n + ": " + e.getMessage()); }
+        }
+        try (Connection c = conn()) {
+            boolean prev = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try (PreparedStatement ps = c.prepareStatement("INSERT INTO custom_records (entity_id, data, created_by) VALUES (?,?,?)")) {
+                for (String d : docs) {
+                    ps.setInt(1, entityId); ps.setString(2, d);
+                    if (userId > 0) ps.setInt(3, userId); else ps.setNull(3, Types.INTEGER);
+                    ps.executeUpdate();
+                }
+                c.commit();
+            } catch (SQLException e) { c.rollback(); throw e; }
+            finally { c.setAutoCommit(prev); }
+        } catch (SQLException e) { throw new CustomModuleException("Database error: " + e.getMessage(), e); }
+        audit("CUSTOM_RECORDS_IMPORTED", docs.size() + " " + entity.label() + " record(s) imported", entityId);
+        return docs.size();
+    }
+
     /** Changes only the fields present in {@code changes}; others keep their stored values. */
     public void update(long recordId, Map<String, Object> changes) throws CustomModuleException {
         try (Connection c = conn()) {
@@ -98,7 +148,7 @@ public final class CustomRecordService {
             for (FieldDef f : defs.listFields(entityId, false)) {
                 if (f.type() == FieldType.CALC || !changes.containsKey(f.key())) continue;
                 doc.remove(f.key());
-                put(doc, f, changes.get(f.key()));
+                put(doc, f, changes.get(f.key()), null);
             }
             // fields that are required but were never filled (e.g. added after the record was created)
             for (FieldDef f : defs.listFields(entityId, false)) {
@@ -142,26 +192,39 @@ public final class CustomRecordService {
     public RecordView get(long recordId) {
         try (Connection c = conn()) {
             Object[] row = loadRaw(c, recordId);
-            return row == null ? null : view(c, recordId, (int) row[0], (String) row[1], (String) row[2], (String) row[3]);
+            return row == null ? null : view(c, recordId, (int) row[0], (String) row[1], (String) row[2], (String) row[3],
+                    new ViewContext(defs.listFields((int) row[0], false)));
         } catch (SQLException e) { e.printStackTrace(); return null; }
     }
 
     /** Newest first. {@code search} matches anywhere in a record's VALUES (case-insensitive) — never its internal field keys. */
     public List<RecordView> list(int entityId, String search, int limit) {
+        return query(entityId, null, List.of(), null, search, limit);
+    }
+
+    /**
+     * The one read path every list/report/subform uses. {@code extraWhere} is an SQL fragment over the
+     * {@code custom_records} columns built ONLY by {@link CustomQueryService} from validated field keys,
+     * with every value in {@code params} (bound, never concatenated). {@code orderBy} likewise.
+     */
+    List<RecordView> query(int entityId, String extraWhere, List<Object> params, String orderBy, String search, int limit) {
         List<RecordView> out = new ArrayList<>();
         boolean hasSearch = search != null && !search.isBlank();
-        try (Connection c = conn(); PreparedStatement ps = c.prepareStatement(
-                "SELECT id, data, created_at, updated_at FROM custom_records WHERE entity_id = ? AND deleted_at IS NULL "
-                        + (hasSearch ? "AND EXISTS (SELECT 1 FROM json_each(custom_records.data) je WHERE LOWER(CAST(je.value AS TEXT)) LIKE ? ESCAPE '\\') " : "")
-                        + "ORDER BY id DESC LIMIT ?")) {
+        String sql = "SELECT id, data, created_at, updated_at FROM custom_records WHERE entity_id = ? AND deleted_at IS NULL "
+                + (extraWhere == null || extraWhere.isBlank() ? "" : "AND (" + extraWhere + ") ")
+                + (hasSearch ? "AND EXISTS (SELECT 1 FROM json_each(custom_records.data) je WHERE LOWER(CAST(je.value AS TEXT)) LIKE ? ESCAPE '\\') " : "")
+                + "ORDER BY " + (orderBy == null || orderBy.isBlank() ? "id DESC" : orderBy) + " LIMIT ?";
+        try (Connection c = conn(); PreparedStatement ps = c.prepareStatement(sql)) {
             int i = 1;
             ps.setInt(i++, entityId);
+            for (Object p : params) ps.setObject(i++, p);
             if (hasSearch) ps.setString(i++, "%" + search.trim().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
-            ps.setInt(i, Math.max(1, Math.min(limit, 5000)));
+            ps.setInt(i, Math.max(1, Math.min(limit, 20000)));
             ResultSet rs = ps.executeQuery();
             List<Object[]> rows = new ArrayList<>();
             while (rs.next()) rows.add(new Object[]{rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4)});
-            for (Object[] r : rows) out.add(view(c, (long) r[0], entityId, (String) r[1], (String) r[2], (String) r[3]));
+            ViewContext vc = new ViewContext(defs.listFields(entityId, false));
+            for (Object[] r : rows) out.add(view(c, (long) r[0], entityId, (String) r[1], (String) r[2], (String) r[3], vc));
         } catch (SQLException e) { e.printStackTrace(); }
         return out;
     }
@@ -199,7 +262,7 @@ public final class CustomRecordService {
 
     // ── validation / normalisation ────────────────────────────────────────
 
-    private void put(JsonObject doc, FieldDef f, Object raw) throws CustomModuleException {
+    private void put(JsonObject doc, FieldDef f, Object raw, Map<String, Boolean> linkCache) throws CustomModuleException {
         boolean empty = raw == null || (raw instanceof String s && s.isBlank());
         if (empty) {
             if (f.required()) throw new CustomModuleException("\"" + f.label() + "\" is required.");
@@ -207,14 +270,27 @@ public final class CustomRecordService {
         }
         try {
             switch (f.type()) {
-                case TEXT, LONG_TEXT -> doc.addProperty(f.key(), raw.toString().trim());
+                case TEXT, LONG_TEXT -> {
+                    String text = raw.toString().trim();
+                    checkRange(f, text.length(), true);
+                    doc.addProperty(f.key(), text);
+                }
                 case INTEGER -> {
                     BigDecimal bd = new BigDecimal(raw.toString().trim().replace(",", ""));
                     if (bd.stripTrailingZeros().scale() > 0) throw new NumberFormatException();
+                    checkRange(f, bd.doubleValue(), false);
                     doc.addProperty(f.key(), bd.longValueExact());
                 }
-                case DECIMAL -> doc.addProperty(f.key(), new BigDecimal(raw.toString().trim().replace(",", "")).doubleValue());
-                case MONEY -> doc.addProperty(f.key(), new BigDecimal(raw.toString().trim().replace(",", "")).setScale(2, RoundingMode.HALF_UP).doubleValue());
+                case DECIMAL -> {
+                    BigDecimal bd = new BigDecimal(raw.toString().trim().replace(",", ""));
+                    checkRange(f, bd.doubleValue(), false);
+                    doc.addProperty(f.key(), bd.doubleValue());
+                }
+                case MONEY -> {
+                    BigDecimal bd = new BigDecimal(raw.toString().trim().replace(",", "")).setScale(2, RoundingMode.HALF_UP);
+                    checkRange(f, bd.doubleValue(), false);
+                    doc.addProperty(f.key(), bd.doubleValue());
+                }
                 case DATE -> doc.addProperty(f.key(), LocalDate.parse(raw.toString().trim()).toString());
                 case DATETIME -> doc.addProperty(f.key(), LocalDateTime.parse(raw.toString().trim().replace(' ', 'T')).toString());
                 case BOOLEAN -> doc.addProperty(f.key(), raw instanceof Boolean b ? b : "true".equalsIgnoreCase(raw.toString()) || "yes".equalsIgnoreCase(raw.toString()));
@@ -225,7 +301,7 @@ public final class CustomRecordService {
                 }
                 case LOOKUP -> {
                     long id = raw instanceof LookupOption o ? o.id() : (raw instanceof Number n ? n.longValue() : Long.parseLong(raw.toString().trim()));
-                    if (f.lookupEntityId() == null || !liveRecordExists(id, f.lookupEntityId()))
+                    if (f.lookupEntityId() == null || !linkExists(id, f.lookupEntityId(), linkCache))
                         throw new CustomModuleException("The record chosen for \"" + f.label() + "\" doesn't exist.");
                     doc.addProperty(f.key(), id);
                 }
@@ -238,11 +314,29 @@ public final class CustomRecordService {
         }
     }
 
+    /** Applies the field's validation rule: a numeric value is bounded; a text value's LENGTH is bounded. */
+    private static void checkRange(FieldDef f, double value, boolean isLength) throws CustomModuleException {
+        boolean tooLow = f.minValue() != null && value < f.minValue();
+        boolean tooHigh = f.maxValue() != null && value > f.maxValue();
+        if (!tooLow && !tooHigh) return;
+        if (f.validationMessage() != null && !f.validationMessage().isBlank()) throw new CustomModuleException(f.validationMessage());
+        String what = isLength ? "\"" + f.label() + "\" must be " + (tooLow ? "at least " + fmt(f.minValue()) : "at most " + fmt(f.maxValue())) + " characters long."
+                               : "\"" + f.label() + "\" must be " + (tooLow ? "at least " + fmt(f.minValue()) : "at most " + fmt(f.maxValue())) + ".";
+        throw new CustomModuleException(what);
+    }
+
+    private static String fmt(double d) { return d == Math.rint(d) ? String.valueOf((long) d) : String.valueOf(d); }
+
     private static Object defaultFor(FieldDef f) {
         String d = f.defaultValue();
         if (d == null || d.isBlank()) return null;
         if (f.type() == FieldType.DATE && d.equalsIgnoreCase("today")) return LocalDate.now().toString();
         return d;
+    }
+
+    private boolean linkExists(long id, int entityId, Map<String, Boolean> cache) {
+        if (cache == null) return liveRecordExists(id, entityId);
+        return cache.computeIfAbsent(entityId + ":" + id, k -> liveRecordExists(id, entityId));
     }
 
     private boolean liveRecordExists(long id, int entityId) {
@@ -262,8 +356,15 @@ public final class CustomRecordService {
         }
     }
 
-    private RecordView view(Connection c, long id, int entityId, String json, String created, String updated) {
-        List<FieldDef> fields = defs.listFields(entityId, false);
+    /** Per-read cache: the entity's fields are read once for a whole list, not once per row; so are child-link fields. */
+    private static final class ViewContext {
+        final List<FieldDef> fields;
+        final Map<String, FieldDef> childLinks = new HashMap<>();
+        ViewContext(List<FieldDef> fields) { this.fields = fields; }
+    }
+
+    private RecordView view(Connection c, long id, int entityId, String json, String created, String updated, ViewContext vc) {
+        List<FieldDef> fields = vc.fields;
         JsonObject doc = JsonParser.parseString(json).getAsJsonObject();
         Map<String, Object> values = new LinkedHashMap<>();
         for (FieldDef f : fields) {
@@ -279,13 +380,13 @@ public final class CustomRecordService {
         Map<String, FieldDef> byKey = new HashMap<>();
         for (FieldDef f : fields) byKey.put(f.key(), f);
         for (FieldDef f : fields) {
-            if (f.type() == FieldType.CALC) values.put(f.key(), evaluateCalc(c, f, byKey, values, entityId, id, 0));
+            if (f.type() == FieldType.CALC) values.put(f.key(), evaluateCalc(c, f, byKey, values, entityId, id, 0, vc));
         }
         return new RecordView(id, entityId, values, created, updated);
     }
 
     private Double evaluateCalc(Connection c, FieldDef calc, Map<String, FieldDef> byKey, Map<String, Object> values,
-                                int entityId, long recordId, int depth) {
+                                int entityId, long recordId, int depth, ViewContext vc) {
         if (depth > 8 || calc.formula() == null) return null;   // depth guard: calc fields that reference each other in a loop
         try {
             FormulaEngine.Parsed p = FormulaEngine.parse(calc.formula());
@@ -293,21 +394,25 @@ public final class CustomRecordService {
                 @Override public Double value(String key) {
                     FieldDef f = byKey.get(key);
                     if (f == null) return null;
-                    if (f.type() == FieldType.CALC) return evaluateCalc(c, f, byKey, values, entityId, recordId, depth + 1);
+                    if (f.type() == FieldType.CALC) return evaluateCalc(c, f, byKey, values, entityId, recordId, depth + 1, vc);
                     Object v = values.get(key);
                     return v instanceof Number n ? n.doubleValue() : null;
                 }
-                @Override public double sumOf(long childEntityId, String fieldKey) { return aggregate(c, childEntityId, fieldKey, entityId, recordId); }
-                @Override public double countOf(long childEntityId) { return aggregate(c, childEntityId, null, entityId, recordId); }
+                @Override public double sumOf(long childEntityId, String fieldKey) { return aggregate(c, childEntityId, fieldKey, entityId, recordId, vc); }
+                @Override public double countOf(long childEntityId) { return aggregate(c, childEntityId, null, entityId, recordId, vc); }
             });
         } catch (FormulaEngine.FormulaException e) { return null; }
     }
 
     /** SUM of a child field (or COUNT when fieldKey is null) over live child records that link to this record. */
-    private double aggregate(Connection c, long childEntityId, String fieldKey, int parentEntityId, long parentRecordId) {
-        FieldDef link = null;
-        for (FieldDef f : defs.listFields((int) childEntityId, false)) {
-            if (f.type() == FieldType.LOOKUP && f.lookupEntityId() != null && f.lookupEntityId() == parentEntityId) { link = f; break; }
+    private double aggregate(Connection c, long childEntityId, String fieldKey, int parentEntityId, long parentRecordId, ViewContext vc) {
+        String cacheKey = childEntityId + ">" + parentEntityId;
+        FieldDef link = vc.childLinks.get(cacheKey);
+        if (link == null && !vc.childLinks.containsKey(cacheKey)) {
+            for (FieldDef f : defs.listFields((int) childEntityId, false)) {
+                if (f.type() == FieldType.LOOKUP && f.lookupEntityId() != null && f.lookupEntityId() == parentEntityId) { link = f; break; }
+            }
+            vc.childLinks.put(cacheKey, link);
         }
         if (link == null) return 0;
         String sql = fieldKey == null
