@@ -236,6 +236,11 @@ public class CustomModuleBuilderView {
         if (f.type() == FieldType.CHOICE) detail.append(": ").append(String.join(", ", f.choices()));
         if (f.type() == FieldType.CALC) detail.append(" = ").append(defs.keysToLabels(entity.id(), f.formula()));
         if (f.unit() != null && !f.unit().isBlank()) detail.append("  (").append(f.unit()).append(")");
+        if (f.minValue() != null || f.maxValue() != null) {
+            detail.append("  · ").append(f.type().isNumeric() ? "allowed " : "length ")
+                  .append(f.minValue() == null ? "up to " + plain(f.maxValue()) : f.maxValue() == null ? "at least " + plain(f.minValue())
+                          : plain(f.minValue()) + " to " + plain(f.maxValue()));
+        }
         if (f.searchable()) detail.append("  · indexed");
         if (f.archived()) detail.append("  · archived");
         Label info = new Label(detail.toString());
@@ -323,6 +328,14 @@ public class CustomModuleBuilderView {
         formulaHint.setWrapText(true);
         formulaHint.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
 
+        // validation rule: numbers are bounded by value, text by length
+        TextField minF = new TextField(existing == null || existing.minValue() == null ? "" : plain(existing.minValue())); minF.setStyle(FIELD); minF.setPrefWidth(110); minF.setId("cmFieldMin");
+        TextField maxF = new TextField(existing == null || existing.maxValue() == null ? "" : plain(existing.maxValue())); maxF.setStyle(FIELD); maxF.setPrefWidth(110); maxF.setId("cmFieldMax");
+        TextField msgF = new TextField(existing == null || existing.validationMessage() == null ? "" : existing.validationMessage()); msgF.setStyle(FIELD);
+        msgF.setPromptText("Message shown when it's outside the range (optional)"); msgF.setId("cmFieldMsg");
+        Label rulesTitle = lbl("Allowed values");
+        VBox rulesBox = new VBox(6, rulesTitle, new HBox(8, new Label("from"), minF, new Label("to"), maxF), msgF);
+
         VBox choicesBox = new VBox(4, lbl("Options"), choices);
         VBox targetBox = new VBox(4, lbl("Links to"), target);
         VBox formulaBox = new VBox(4, lbl("Formula"), formula, formulaHint);
@@ -335,11 +348,14 @@ public class CustomModuleBuilderView {
             boolean plain = t != FieldType.CALC && t != FieldType.LOOKUP && t != FieldType.BOOLEAN;
             plainBox.setVisible(plain); plainBox.setManaged(plain);
             required.setDisable(t == FieldType.CALC);
+            boolean range = t.isNumeric() || t == FieldType.TEXT || t == FieldType.LONG_TEXT;
+            rulesBox.setVisible(range); rulesBox.setManaged(range);
+            rulesTitle.setText(t.isNumeric() ? "Allowed values (leave blank for no limit)" : "Allowed length in characters (leave blank for no limit)");
         };
         type.valueProperty().addListener((o, a, b) -> toggle.run());
         toggle.run();
 
-        VBox form = new VBox(8, lbl("Field name"), label, lbl("Type"), type, choicesBox, targetBox, formulaBox, plainBox, required, showInList, searchable);
+        VBox form = new VBox(8, lbl("Field name"), label, lbl("Type"), type, choicesBox, targetBox, formulaBox, plainBox, rulesBox, required, showInList, searchable);
         form.setPadding(new Insets(16));
         ScrollPane sp = new ScrollPane(form);
         sp.setFitToWidth(true);
@@ -357,13 +373,15 @@ public class CustomModuleBuilderView {
                 String storedFormula = t == FieldType.CALC ? defs.labelsToKeys(entity.id(), formula.getText().trim()) : null;
                 String defVal = def.getText().isBlank() ? null : def.getText().trim();
                 String unitVal = unit.getText().isBlank() ? null : unit.getText().trim();
+                Double minV = parseLimit(minF.getText()), maxV = parseLimit(maxF.getText());
+                String msgV = msgF.getText().isBlank() ? null : msgF.getText().trim();
                 if (existing == null) {
                     defs.addField(new FieldDef(0, entity.id(), label.getText(), t, required.isSelected(), defVal, opts,
                             t == FieldType.LOOKUP && target.getValue() != null ? target.getValue().id() : null,
-                            storedFormula, unitVal, showInList.isSelected(), searchable.isSelected(), 0, false));
+                            storedFormula, unitVal, showInList.isSelected(), searchable.isSelected(), 0, false, minV, maxV, msgV));
                 } else {
                     defs.updateField(existing.id(), label.getText(), required.isSelected(), defVal, opts, storedFormula, unitVal,
-                            showInList.isSelected(), searchable.isSelected());
+                            showInList.isSelected(), searchable.isSelected(), minV, maxV, msgV);
                 }
                 changed = true;
             } catch (CustomModuleException ex) { error(ex.getMessage()); ev.consume(); }
@@ -372,6 +390,14 @@ public class CustomModuleBuilderView {
     }
 
     // ── small helpers ─────────────────────────────────────────────────────
+
+    private static String plain(double d) { return d == Math.rint(d) ? String.valueOf((long) d) : String.valueOf(d); }
+
+    private static Double parseLimit(String s) throws CustomModuleException {
+        if (s == null || s.isBlank()) return null;
+        try { return Double.parseDouble(s.trim().replace(",", "")); }
+        catch (NumberFormatException e) { throw new CustomModuleException("The allowed range needs numbers (or leave it blank)."); }
+    }
 
     private VBox card() {
         VBox c = new VBox(10);

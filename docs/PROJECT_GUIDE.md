@@ -110,6 +110,9 @@ Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(p
 - Field keys are immutable (`f_<id>`); never derive a key from a label. Fields are archived, never dropped; type/link target can't change after creation.
 - Calculations go through `FormulaEngine` only (own parser, whitelisted functions). **Never** `eval`, a script engine, or user text concatenated into SQL.
 - The only DDL this feature issues is an optional expression `CREATE INDEX` named from numeric ids. SQLite rule learned the hard way: **drop an index before dropping the column it references**.
+- **Never concatenate user text into SQL for views/reports.** `CustomQueryService` addresses fields only by validated key, passes JSON paths and every filter value as bound parameters, and embeds only the validated `f_<digits>` key as a literal in ORDER BY. New query features must do the same. Calculated fields can't be filtered/sorted/grouped (they are evaluated in Java).
+- **Per-row work in a list is a performance bug.** Read an entity's fields ONCE per query (`ViewContext`), cache link-target existence per batch, and run the schema check once per process — measured: this was 20× on every list and 20× on bulk create.
+- Any user-visible text going into generated HTML must go through `CustomReportHtml.esc`; any cell going into CSV through `CustomCsv.quote` (defuses `=`/`+`/`@` formula injection).
 - In WAL mode a transaction that reads-then-writes can fail instantly with `SQLITE_BUSY_SNAPSHOT` (the busy timeout doesn't apply) when another connection commits in between — the audit writer does, constantly. Wrap such transactions in a bounded retry (see `PermissionAdminService.guarded`).
 
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
@@ -161,7 +164,7 @@ Explicit direction: rather than hardcoded admin/super-admin roles, **access leve
 
 ### 7.2 Custom module builder ("admin-defined modules")
 
-> **STATUS (v11.28): phases 1–3 BUILT** (engine, generic runtime screen, builder UI at Settings → Custom Modules). See `docs/design/custom-modules.md` (design, evidence, implementation status) and §4.8 below. Reports, starter packs and entity-level permissions remain.
+> **STATUS (v11.29): BUILT** — engine, generic runtime screen, builder UI (Settings → Custom Modules), plus validation rules, saved views & reports, subforms, CSV import/export and a printable report page. See `docs/design/custom-modules.md` and §4.8 below. Starter packs, built-in-entity links and entity-level permissions remain.
 
 Direct request, paraphrased: *"we need a place where modules can be written/created/defined — if a company adds a department not in the module packages provided by the system, they can define their own: name it, define what data it holds, and calculations if needed."*
 
@@ -280,6 +283,8 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Positions & Access editor | `views/PositionsAccessView.java` |
 | Greying controls by permission | `utils/PermissionGuard.java` |
 | Custom (admin-built) modules: definitions / records / formulas | `custom/CustomModuleService.java`, `custom/CustomRecordService.java`, `custom/FormulaEngine.java` |
+| Custom modules: views & reports engine / editor dialog | `custom/CustomQueryService.java`, `custom/CustomViewEditorDialog.java` |
+| Custom modules: generated form + subforms / CSV / printable page / formatting | `custom/CustomRecordForm.java`, `custom/CustomCsv.java`, `custom/CustomReportHtml.java`, `custom/CustomFormat.java` |
 | Custom modules: generic runtime screen / builder / registry glue | `custom/CustomModuleView.java`, `custom/CustomModuleBuilderView.java`, `custom/CustomModule.java`, `custom/CustomModuleLoader.java` |
 | Sandbox compile/test tooling | `tools/sandbox-verify.sh`, `tools/checks/*` |
 | POS / checkout | `views/SalesView.java`, `dao/SaleDAO.java` |
@@ -308,4 +313,5 @@ Every version from the original upload (v9) onward has its own dated entry in `d
 - **`ReportsView` (~line 88) shows invented figures:** `netProfit > 0 ? netProfit : 1800000` and a fallback 42% margin — fabricated fallbacks, the §5 bug class.
 - **AI Assistant panel is not permission-gated:** a user without Finance access could still ask it about financial data.
 - **Own position changes** show in the sidebar after the next sign-in (permissions themselves refresh within seconds).
+- **`SessionManager.getBusinessSetting()` is a dead stub** that always returns `""` (zero callers). Business settings are read straight from the `settings` table (see `ReceiptPrinter`, `CustomModuleService.businessName()`); the stub should be implemented or deleted.
 

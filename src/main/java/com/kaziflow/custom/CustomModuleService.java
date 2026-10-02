@@ -555,6 +555,14 @@ public final class CustomModuleService {
         try (Statement s = c.createStatement()) { s.execute("DROP INDEX IF EXISTS ix_cx_f" + fieldId); }
     }
 
+    /** The business name for report headers ("" if none is set). */
+    public String businessName() {
+        try (Connection c = conn(); PreparedStatement ps = c.prepareStatement("SELECT value FROM settings WHERE key = 'business_name'")) {
+            ResultSet rs = ps.executeQuery();
+            return rs.next() && rs.getString(1) != null ? rs.getString(1) : "";
+        } catch (SQLException e) { return ""; }
+    }
+
     // ── small helpers ─────────────────────────────────────────────────────
 
     static String slug(String label) {

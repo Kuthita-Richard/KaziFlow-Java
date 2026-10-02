@@ -4,7 +4,7 @@ import com.kaziflow.custom.CustomModuleService.CustomModuleException;
 import com.kaziflow.custom.CustomModuleService.EntityDef;
 import com.kaziflow.custom.CustomModuleService.FieldDef;
 import com.kaziflow.custom.CustomModuleService.ModuleDef;
-import com.kaziflow.custom.CustomRecordService.LookupOption;
+import com.kaziflow.custom.CustomQueryService.*;
 import com.kaziflow.custom.CustomRecordService.RecordView;
 import com.kaziflow.services.PermissionService;
 import com.kaziflow.services.PermissionService.Action;
@@ -13,34 +13,41 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
 
-import java.text.DecimalFormat;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * CustomModuleView — the ONE screen that renders ANY admin-defined module. Nothing in here knows about
  * vehicles, ambulances or transport: it reads the module's entities and fields and generates a tab per
- * entity with a searchable list (columns = the fields marked "show in list", plus totals for numeric
- * ones) and an add/edit form (one control per field, chosen by its type).
- *
- * <p>Buttons follow the signed-in user's access to THIS module (Create / Write / Delete), via the same
- * generic {@link PermissionService#can(String, Action)} check every other module uses.
+ * entity with
+ * <ul>
+ *   <li>a searchable list (columns = the fields marked "show in list") with totals over ALL matching records;</li>
+ *   <li>saved <b>views</b> and point-and-click <b>reports</b> (filter, sort, group, total) — see
+ *       {@link CustomViewEditorDialog};</li>
+ *   <li><b>CSV export</b>, a printable report page, and <b>CSV import</b> with a preview before anything is written;</li>
+ *   <li>an add/edit form with <b>subforms</b> ({@link CustomRecordForm}).</li>
+ * </ul>
+ * Buttons follow the signed-in user's Create / Write / Delete access to THIS module via the same generic
+ * {@link PermissionService#can(String, Action)} check every other module uses.
  */
 public class CustomModuleView {
 
     private static final String BTN_PRIMARY = "-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-height: 34px; -fx-padding: 0 16; -fx-cursor: hand; -fx-font-size: 13px;";
-    private static final String FIELD = "-fx-pref-height: 34px; -fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 13px; -fx-padding: 0 8;";
-    private static final DecimalFormat NUM = new DecimalFormat("#,##0.##");
-    private static final DecimalFormat INT = new DecimalFormat("#,##0");
-    private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
+    private static final String BTN_PLAIN = "-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-background-radius: 8; -fx-pref-height: 34px; -fx-padding: 0 12; -fx-cursor: hand; -fx-font-size: 12px;";
 
     private final VBox root = new VBox(0);
     private final CustomModuleService defs = CustomModuleService.getInstance();
     private final CustomRecordService recs = CustomRecordService.getInstance();
+    private final CustomQueryService query = CustomQueryService.getInstance();
     private final int moduleDbId;
     private String moduleId = "";
+    private final List<EntityPane> panes = new ArrayList<>();
+    private TabPane tabs;
 
     public CustomModuleView(int moduleDbId) {
         this.moduleDbId = moduleDbId;
@@ -48,6 +55,14 @@ public class CustomModuleView {
     }
 
     public VBox getRoot() { return root; }
+
+    /** Applies a view to a record type's tab — used by tests and available to callers that deep-link into a report. */
+    public void applyView(int tabIndex, ViewDef def) { panes.get(tabIndex).apply(def, null); }
+
+    public int tabCount() { return panes.size(); }
+
+    /** Shows the tab for the record type at {@code index}. */
+    public void selectTab(int index) { if (tabs != null) tabs.getSelectionModel().select(index); }
 
     private void build() {
         root.setStyle("-fx-background-color: #f8fafc;");
@@ -72,9 +87,9 @@ public class CustomModuleView {
             titles.getChildren().add(sub);
         }
         bar.getChildren().add(titles);
+        root.getChildren().add(bar);
 
         List<EntityDef> entities = defs.listEntities(moduleDbId);
-        root.getChildren().add(bar);
         if (entities.isEmpty()) {
             Label none = new Label("Nothing has been set up in this module yet.\nAn administrator can add record types and fields in Settings → Custom Modules.");
             none.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13px;");
@@ -82,68 +97,133 @@ public class CustomModuleView {
             root.getChildren().add(none);
             return;
         }
-        TabPane tabs = new TabPane();
+        tabs = new TabPane();
         tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         for (EntityDef e : entities) {
+            EntityPane p = new EntityPane(e);
+            panes.add(p);
             Tab t = new Tab(e.pluralLabel() == null || e.pluralLabel().isBlank() ? e.label() : e.pluralLabel());
-            t.setContent(new EntityPane(e).root);
+            t.setContent(p.root);
             tabs.getTabs().add(t);
         }
         VBox.setVgrow(tabs, Priority.ALWAYS);
         root.getChildren().add(tabs);
     }
 
-    // ── one tab: list + toolbar + totals ──────────────────────────────────
+    // ── one tab: toolbar + list/report + totals ───────────────────────────
 
     private final class EntityPane {
         final VBox root = new VBox(12);
         final EntityDef entity;
         final TableView<RecordView> table = new TableView<>();
+        final TableView<GroupRow> groupTable = new TableView<>();
+        final StackPane tableHolder = new StackPane();
         final TextField search = new TextField();
         final Label totals = new Label();
         final Label count = new Label();
+        final ComboBox<Object> viewBox = new ComboBox<>();
+        final PermissionService ps = PermissionService.getInstance();
         List<FieldDef> fields;
-        Map<Integer, Map<Long, String>> lookupTitles = new HashMap<>();
+        ViewDef currentDef = ViewDef.ALL;
+        SavedView currentSaved = null;
+        boolean updatingViewBox = false;
+        // what's on screen, so export / report page reuse the exact same result
+        List<RecordView> shownRows = List.of();
+        GroupResult shownGroup = null;
 
         EntityPane(EntityDef entity) {
             this.entity = entity;
             root.setPadding(new Insets(20, 24, 20, 24));
-            PermissionService ps = PermissionService.getInstance();
 
             search.setPromptText("Search " + entity.label().toLowerCase() + "...");
-            search.setPrefWidth(280);
+            search.setPrefWidth(240);
             search.textProperty().addListener((o, a, b) -> refresh());
-            Button add = new Button("+ New " + entity.label());
-            add.setStyle(BTN_PRIMARY);
+
+            viewBox.setId("view-box:" + entity.id());
+            viewBox.setPrefWidth(210);
+            viewBox.valueProperty().addListener((o, a, b) -> {
+                if (updatingViewBox) return;
+                if (b instanceof SavedView sv) apply(sv.def(), sv); else apply(ViewDef.ALL, null);
+            });
+            Button customize = button("Customize view…", BTN_PLAIN, "customize:" + entity.id());
+            customize.setOnAction(e -> CustomViewEditorDialog.show(entity, currentDef, currentSaved, ps.can(moduleId, Action.WRITE),
+                    (def, saved) -> apply(def, saved)));
+            Button export = button("Export CSV", BTN_PLAIN, "export:" + entity.id());
+            export.setOnAction(e -> exportCsv());
+            Button report = button("Report page", BTN_PLAIN, "report:" + entity.id());
+            report.setOnAction(e -> openReportPage());
+            Button imp = button("Import CSV", BTN_PLAIN, "import:" + entity.id());
+            imp.setDisable(!ps.can(moduleId, Action.CREATE));
+            imp.setOnAction(e -> importCsv());
+            Button add = button("+ New " + entity.label(), BTN_PRIMARY, "new:" + entity.id());
             add.setDisable(!ps.can(moduleId, Action.CREATE));
-            add.setOnAction(e -> openForm(null));
-            Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
+            add.setOnAction(e -> CustomRecordForm.open(entity, null, Map.of(), Set.of(), this::refresh));
+
             count.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
-            HBox toolbar = new HBox(12, search, count, sp, add);
+            FlowPane toolbar = new FlowPane(10, 8, search, viewBox, customize, export, report, imp, add);
             toolbar.setAlignment(Pos.CENTER_LEFT);
 
             table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
             table.setPlaceholder(new Label("No " + entity.label().toLowerCase() + " records yet."));
-            VBox.setVgrow(table, Priority.ALWAYS);
+            groupTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+            groupTable.setPlaceholder(new Label("Nothing matches."));
+            groupTable.setVisible(false);
+            tableHolder.getChildren().addAll(table, groupTable);
+            VBox.setVgrow(tableHolder, Priority.ALWAYS);
             totals.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #475569;");
             totals.setWrapText(true);
 
-            root.getChildren().addAll(toolbar, table, totals);
+            root.getChildren().addAll(toolbar, count, tableHolder, totals);
             rebuildColumns();
+            reloadViews();
             refresh();
         }
+
+        Button button(String text, String style, String id) {
+            Button b = new Button(text);
+            b.setStyle(style);
+            b.setId(id);
+            return b;
+        }
+
+        // ── views ─────────────────────────────────────────────────────────
+
+        void reloadViews() {
+            updatingViewBox = true;
+            viewBox.getItems().setAll("All records");
+            viewBox.getItems().addAll(query.listViews(entity.id()));
+            Object shown = "All records";
+            if (currentSaved != null) {
+                for (Object o : viewBox.getItems()) if (o instanceof SavedView sv && sv.id() == currentSaved.id()) shown = sv;
+            } else if (isCustom()) shown = "(customized)";
+            viewBox.setValue(shown);
+            updatingViewBox = false;
+        }
+
+        boolean isCustom() { return currentSaved == null && !currentDef.equals(ViewDef.ALL); }
+
+        void apply(ViewDef def, SavedView saved) {
+            currentDef = def;
+            currentSaved = saved;
+            reloadViews();
+            refresh();
+        }
+
+        // ── columns for the plain list ────────────────────────────────────
 
         void rebuildColumns() {
             fields = defs.listFields(entity.id(), false);
             table.getColumns().clear();
+            Map<Integer, Map<Long, String>> titles = new HashMap<>();
             for (FieldDef f : fields) {
                 if (!f.showInList()) continue;
+                if (f.type() == FieldType.LOOKUP) titles.put(f.id(), CustomFormat.titles(f));
                 TableColumn<RecordView, String> col = new TableColumn<>(f.label() + (f.unit() == null || f.unit().isBlank() ? "" : " (" + f.unit() + ")"));
-                col.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(display(f, d.getValue().values().get(f.key()))));
+                col.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(
+                        CustomFormat.display(f, d.getValue().values().get(f.key()), titlesFor(f, titles))));
                 if (f.type().isNumeric() || f.type() == FieldType.CALC) col.setStyle("-fx-alignment: CENTER-RIGHT;");
                 table.getColumns().add(col);
             }
-            PermissionService ps = PermissionService.getInstance();
             TableColumn<RecordView, Void> actions = new TableColumn<>("");
             actions.setMaxWidth(90); actions.setMinWidth(90);
             actions.setCellFactory(c -> new TableCell<>() {
@@ -155,7 +235,7 @@ public class CustomModuleView {
                         b.setStyle("-fx-background-color: transparent; -fx-text-fill: #94a3b8; -fx-cursor: hand; -fx-font-size: 13px; -fx-padding: 2;");
                     edit.setDisable(!ps.can(moduleId, Action.WRITE));
                     del.setDisable(!ps.can(moduleId, Action.DELETE));
-                    edit.setOnAction(e -> openForm(getTableView().getItems().get(getIndex())));
+                    edit.setOnAction(e -> CustomRecordForm.open(entity, getTableView().getItems().get(getIndex()), Map.of(), Set.of(), EntityPane.this::refresh));
                     del.setOnAction(e -> confirmDelete(getTableView().getItems().get(getIndex())));
                 }
                 @Override protected void updateItem(Void v, boolean empty) { super.updateItem(v, empty); setGraphic(empty ? null : box); }
@@ -163,47 +243,81 @@ public class CustomModuleView {
             table.getColumns().add(actions);
         }
 
+        Map<Long, String> titlesFor(FieldDef f, Map<Integer, Map<Long, String>> cache) {
+            return cache.getOrDefault(f.id(), Map.of());
+        }
+
+        // ── refreshing what's shown ───────────────────────────────────────
+
         void refresh() {
-            lookupTitles = new HashMap<>();
-            for (FieldDef f : fields) {
-                if (f.type() == FieldType.LOOKUP && f.lookupEntityId() != null) {
-                    Map<Long, String> titles = new HashMap<>();
-                    for (LookupOption o : recs.lookupOptions(f.lookupEntityId())) titles.put(o.id(), o.title());
-                    lookupTitles.put(f.id(), titles);
-                }
+            try {
+                if (currentDef.isGrouped()) showGroup(query.group(entity.id(), currentDef));
+                else showList(query.list(entity.id(), currentDef, search.getText(), 1000));
+            } catch (CustomModuleException ex) {
+                // e.g. a saved view that refers to a field archived since — fall back rather than leave a blank screen
+                error(ex.getMessage());
+                currentDef = ViewDef.ALL; currentSaved = null;
+                reloadViews();
+                try { showList(query.list(entity.id(), ViewDef.ALL, search.getText(), 1000)); } catch (CustomModuleException ignored) { }
             }
-            List<RecordView> rows = recs.list(entity.id(), search.getText(), 1000);
-            table.getItems().setAll(rows);
-            count.setText(rows.size() + (rows.size() == 1 ? " record" : " records"));
+        }
+
+        void showList(ListResult lr) {
+            rebuildColumns();                    // fields may have been added or archived since the tab was built
+            shownRows = lr.rows();
+            shownGroup = null;
+            groupTable.setVisible(false); table.setVisible(true);
+            search.setDisable(false);
+            table.getItems().setAll(lr.rows());
+            count.setText(lr.rows().size() < lr.totalMatching()
+                    ? "Showing the newest " + lr.rows().size() + " of " + lr.totalMatching() + " records (export to get them all)"
+                    : lr.totalMatching() + (lr.totalMatching() == 1 ? " record" : " records"));
             StringBuilder sb = new StringBuilder();
             for (FieldDef f : fields) {
                 if (!f.showInList() || !f.type().isNumeric()) continue;
-                double sum = 0;
-                for (RecordView r : rows) if (r.values().get(f.key()) instanceof Number n) sum += n.doubleValue();
+                Double sum = lr.totals().get(f.key());
+                if (sum == null) continue;
                 if (sb.length() > 0) sb.append("   ·   ");
-                sb.append("Total ").append(f.label()).append(": ").append(format(f, sum));
+                sb.append("Total ").append(f.label()).append(": ").append(CustomFormat.number(f, sum));
             }
             totals.setText(sb.toString());
-            totals.setVisible(sb.length() > 0);
-            totals.setManaged(sb.length() > 0);
+            totals.setVisible(sb.length() > 0); totals.setManaged(sb.length() > 0);
         }
 
-        String display(FieldDef f, Object v) {
-            if (v == null) return "";
-            return switch (f.type()) {
-                case BOOLEAN -> ((Boolean) v) ? "Yes" : "No";
-                case LOOKUP -> lookupTitles.getOrDefault(f.id(), Map.of()).getOrDefault(((Number) v).longValue(), "(deleted)");
-                case INTEGER, DECIMAL, MONEY, CALC -> format(f, ((Number) v).doubleValue());
-                default -> v.toString();
-            };
-        }
-
-        String format(FieldDef f, double d) {
-            return switch (f.type()) {
-                case INTEGER -> INT.format(d);
-                case MONEY -> "KES " + MONEY.format(d);
-                default -> NUM.format(d);
-            };
+        void showGroup(GroupResult gr) {
+            shownGroup = gr;
+            shownRows = List.of();
+            Map<String, FieldDef> byKey = new HashMap<>();
+            for (FieldDef f : fields) byKey.put(f.key(), f);
+            FieldDef g = byKey.get(currentDef.groupBy());
+            String groupTitle = (g == null ? "Group" : g.label())
+                    + (currentDef.bucket() == Bucket.MONTH ? " (by month)" : currentDef.bucket() == Bucket.YEAR ? " (by year)" : "");
+            groupTable.getColumns().clear();
+            TableColumn<GroupRow, String> c0 = new TableColumn<>(groupTitle);
+            c0.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().label()));
+            TableColumn<GroupRow, String> c1 = new TableColumn<>("Records");
+            c1.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(String.valueOf(d.getValue().count())));
+            c1.setStyle("-fx-alignment: CENTER-RIGHT;");
+            groupTable.getColumns().addAll(c0, c1);
+            for (Aggregate a : gr.aggregates()) {
+                if (a.fn() == Agg.COUNT) continue;
+                FieldDef f = byKey.get(a.field());
+                String key = a.fn().name() + ":" + a.field();
+                TableColumn<GroupRow, String> c = new TableColumn<>(a.fn().label() + " " + (f == null ? a.field() : f.label()));
+                c.setCellValueFactory(d -> {
+                    Double v = d.getValue().values().get(key);
+                    return new javafx.beans.property.SimpleStringProperty(v == null || f == null ? "" : CustomFormat.number(f, v));
+                });
+                c.setStyle("-fx-alignment: CENTER-RIGHT;");
+                groupTable.getColumns().add(c);
+            }
+            List<GroupRow> items = new ArrayList<>(gr.rows());
+            items.add(new GroupRow(null, "TOTAL", gr.totalCount(), gr.totals()));
+            groupTable.getItems().setAll(items);
+            table.setVisible(false); groupTable.setVisible(true);
+            search.setDisable(true);
+            count.setText(gr.rows().size() + (gr.rows().size() == 1 ? " group" : " groups") + " · " + gr.totalCount() + " records");
+            totals.setVisible(false); totals.setManaged(false);
         }
 
         void confirmDelete(RecordView r) {
@@ -215,103 +329,167 @@ public class CustomModuleView {
             catch (CustomModuleException ex) { error(ex.getMessage()); }
         }
 
-        // ── generated form ────────────────────────────────────────────────
+        // ── export / report page ──────────────────────────────────────────
 
-        void openForm(RecordView existing) {
+        void exportCsv() {
+            try {
+                String csv;
+                if (currentDef.isGrouped()) {
+                    FieldDef g = fields.stream().filter(f -> f.key().equals(currentDef.groupBy())).findFirst().orElse(null);
+                    csv = CustomCsv.exportGroup(entity.id(), g == null ? "Group" : g.label(), query.group(entity.id(), currentDef));
+                } else {
+                    // every matching record, not just the 1,000 shown
+                    csv = CustomCsv.exportList(entity.id(), query.list(entity.id(), currentDef, search.getText(), 20000).rows(), false);
+                }
+                FileChooser fc = new FileChooser();
+                fc.setTitle("Export to CSV");
+                fc.setInitialFileName(CustomModuleService.slug(entity.label()) + "-" + LocalDate.now() + ".csv");
+                fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV (opens in Excel)", "*.csv"));
+                File f = fc.showSaveDialog(root.getScene() == null ? null : root.getScene().getWindow());
+                if (f == null) return;
+                // UTF-8 with a BOM, so Excel reads accents and symbols correctly
+                Files.write(f.toPath(), (CustomCsv.BOM + csv).getBytes(StandardCharsets.UTF_8));
+                info("Saved " + f.getName());
+            } catch (Exception ex) { error("Could not export: " + ex.getMessage()); }
+        }
+
+        void openReportPage() {
+            try {
+                String html;
+                String subtitle = describe(currentDef);
+                if (currentDef.isGrouped()) {
+                    GroupResult gr = query.group(entity.id(), currentDef);
+                    Map<String, FieldDef> byKey = new HashMap<>();
+                    for (FieldDef f : fields) byKey.put(f.key(), f);
+                    List<String> headers = new ArrayList<>(List.of(byKey.get(currentDef.groupBy()).label(), "Records"));
+                    List<Boolean> right = new ArrayList<>(List.of(false, true));
+                    for (Aggregate a : gr.aggregates()) if (a.fn() != Agg.COUNT) { headers.add(a.fn().label() + " " + byKey.get(a.field()).label()); right.add(true); }
+                    List<List<String>> rows = new ArrayList<>();
+                    for (GroupRow g : gr.rows()) {
+                        List<String> line = new ArrayList<>(List.of(g.label(), String.valueOf(g.count())));
+                        for (Aggregate a : gr.aggregates()) if (a.fn() != Agg.COUNT) line.add(CustomFormat.number(byKey.get(a.field()), g.values().getOrDefault(a.fn().name() + ":" + a.field(), 0.0)));
+                        rows.add(line);
+                    }
+                    List<String> total = new ArrayList<>(List.of("TOTAL", String.valueOf(gr.totalCount())));
+                    for (Aggregate a : gr.aggregates()) if (a.fn() != Agg.COUNT) total.add(CustomFormat.number(byKey.get(a.field()), gr.totals().getOrDefault(a.fn().name() + ":" + a.field(), 0.0)));
+                    html = CustomReportHtml.render(defs.businessName(), entity.pluralLabel() + " — report", subtitle, headers, rows, total, right);
+                } else {
+                    ListResult lr = query.list(entity.id(), currentDef, search.getText(), 2000);
+                    List<FieldDef> shown = fields.stream().filter(FieldDef::showInList).toList();
+                    List<String> headers = shown.stream().map(FieldDef::label).toList();
+                    List<Boolean> right = shown.stream().map(f -> f.type().isNumeric() || f.type() == FieldType.CALC).toList();
+                    Map<Integer, Map<Long, String>> titles = new HashMap<>();
+                    for (FieldDef f : shown) if (f.type() == FieldType.LOOKUP) titles.put(f.id(), CustomFormat.titles(f));
+                    List<List<String>> rows = new ArrayList<>();
+                    for (RecordView r : lr.rows()) {
+                        List<String> line = new ArrayList<>();
+                        for (FieldDef f : shown) line.add(CustomFormat.display(f, r.values().get(f.key()), titles.getOrDefault(f.id(), Map.of())));
+                        rows.add(line);
+                    }
+                    List<String> total = null;
+                    if (shown.stream().anyMatch(f -> f.type().isNumeric())) {
+                        total = new ArrayList<>();
+                        for (int i = 0; i < shown.size(); i++) {
+                            FieldDef f = shown.get(i);
+                            Double sum = f.type().isNumeric() ? lr.totals().get(f.key()) : null;
+                            total.add(i == 0 ? "TOTAL" : (sum == null ? "" : CustomFormat.number(f, sum)));
+                        }
+                    }
+                    String sub = subtitle + (lr.rows().size() < lr.totalMatching() ? " — first " + lr.rows().size() + " of " + lr.totalMatching() + " records" : "");
+                    html = CustomReportHtml.render(defs.businessName(), entity.pluralLabel(), sub, headers, rows, total, right);
+                }
+                File out = File.createTempFile("kaziflow-report-", ".html");
+                out.deleteOnExit();
+                Files.writeString(out.toPath(), html, StandardCharsets.UTF_8);
+                if (java.awt.Desktop.isDesktopSupported()) java.awt.Desktop.getDesktop().open(out);
+                else info("Report saved to " + out.getAbsolutePath());
+            } catch (Exception ex) { error("Could not open the report: " + ex.getMessage()); }
+        }
+
+        /** A plain-English line under the report title: which view, search and date. */
+        String describe(ViewDef def) {
+            StringBuilder sb = new StringBuilder(currentSaved != null ? currentSaved.name() : (def.equals(ViewDef.ALL) ? "All records" : "Custom view"));
+            if (!search.getText().isBlank() && !def.isGrouped()) sb.append(" · search: \"").append(search.getText().trim()).append("\"");
+            return sb.toString();
+        }
+
+        // ── import ────────────────────────────────────────────────────────
+
+        void importCsv() {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Import " + entity.pluralLabel() + " from CSV");
+            fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV / Excel-saved-as-CSV", "*.csv", "*.txt"));
+            File f = fc.showOpenDialog(root.getScene() == null ? null : root.getScene().getWindow());
+            if (f == null) return;
+            try {
+                String text = Files.readString(f.toPath(), StandardCharsets.UTF_8);
+                CustomCsv.ImportPlan plan = CustomCsv.plan(entity.id(), text);
+                showImportPreview(f.getName(), plan);
+            } catch (CustomModuleException ex) {
+                error(ex.getMessage());
+            } catch (java.nio.charset.MalformedInputException ex) {
+                error("That file isn't UTF-8 text. In Excel use Save As → \"CSV UTF-8 (Comma delimited)\".");
+            } catch (Exception ex) { error("Could not read the file: " + ex.getMessage()); }
+        }
+
+        void showImportPreview(String fileName, CustomCsv.ImportPlan plan) {
             Dialog<ButtonType> d = new Dialog<>();
             com.kaziflow.utils.DialogUtils.makeResizable(d);
-            d.setTitle((existing == null ? "New " : "Edit ") + entity.label());
+            d.setTitle("Import preview — " + fileName);
             d.setHeaderText(null);
             d.getDialogPane().setStyle("-fx-background-color: white;");
-            d.getDialogPane().setPrefWidth(480);
+            d.getDialogPane().setPrefWidth(620);
 
-            GridPane form = new GridPane();
-            form.setHgap(12); form.setVgap(12); form.setPadding(new Insets(20));
-            Map<String, Supplier<Object>> readers = new LinkedHashMap<>();
-            int row = 0;
-            for (FieldDef f : fields) {
-                Label lbl = new Label(f.label() + (f.required() ? " *" : "") + (f.unit() == null || f.unit().isBlank() ? "" : " (" + f.unit() + ")"));
-                lbl.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #475569;");
-                Object current = existing == null ? null : existing.values().get(f.key());
-                javafx.scene.Node control;
-                switch (f.type()) {
-                    case LONG_TEXT -> {
-                        TextArea ta = new TextArea(current == null ? "" : current.toString());
-                        ta.setPrefRowCount(3); ta.setWrapText(true);
-                        control = ta; readers.put(f.key(), ta::getText);
-                    }
-                    case DATE -> {
-                        DatePicker dp = new DatePicker(current == null ? (existing == null && "today".equalsIgnoreCase(f.defaultValue()) ? LocalDate.now() : null) : LocalDate.parse(current.toString()));
-                        dp.setPrefWidth(280);
-                        control = dp; readers.put(f.key(), () -> dp.getValue() == null ? null : dp.getValue().toString());
-                    }
-                    case BOOLEAN -> {
-                        CheckBox cb = new CheckBox();
-                        cb.setSelected(current instanceof Boolean b ? b : "true".equalsIgnoreCase(f.defaultValue()));
-                        control = cb; readers.put(f.key(), cb::isSelected);
-                    }
-                    case CHOICE -> {
-                        ComboBox<String> cb = new ComboBox<>();
-                        if (!f.required()) cb.getItems().add("");
-                        cb.getItems().addAll(f.choices());
-                        cb.setValue(current != null ? current.toString() : (existing == null && f.defaultValue() != null && f.choices().contains(f.defaultValue()) ? f.defaultValue() : (f.required() ? null : "")));
-                        cb.setPrefWidth(280);
-                        control = cb; readers.put(f.key(), cb::getValue);
-                    }
-                    case LOOKUP -> {
-                        ComboBox<Object> cb = new ComboBox<>();
-                        List<LookupOption> opts = recs.lookupOptions(f.lookupEntityId());
-                        if (!f.required()) cb.getItems().add("");
-                        cb.getItems().addAll(opts);
-                        if (current != null) for (LookupOption o : opts) if (o.id() == ((Number) current).longValue()) cb.setValue(o);
-                        cb.setPrefWidth(280);
-                        cb.setPromptText(opts.isEmpty() ? "Nothing to choose from yet" : "Choose...");
-                        control = cb; readers.put(f.key(), () -> cb.getValue() instanceof LookupOption o ? o : null);
-                    }
-                    case CALC -> {
-                        Label val = new Label(existing == null ? "(worked out automatically)" : display(f, current));
-                        val.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13px;");
-                        control = val;
-                    }
-                    default -> {
-                        TextField tf = new TextField(current == null ? "" : (current instanceof Double dv ? stripZeros(dv) : current.toString()));
-                        if (f.type() == FieldType.DATETIME) tf.setPromptText("yyyy-mm-ddThh:mm");
-                        if (f.type().isNumeric()) tf.setPromptText("0");
-                        tf.setStyle(FIELD); tf.setPrefWidth(280);
-                        control = tf; readers.put(f.key(), tf::getText);
-                    }
-                }
-                form.add(lbl, 0, row);
-                form.add(control, 1, row++);
+            VBox body = new VBox(10);
+            body.setPadding(new Insets(16));
+            Label summary = new Label(plan.validCount() + " row(s) are ready to import" + (plan.errorCount() > 0 ? ", " + plan.errorCount() + " have problems and will be skipped." : "."));
+            summary.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + (plan.errorCount() > 0 ? "#b45309" : "#16a34a") + ";");
+            body.getChildren().add(summary);
+            body.getChildren().add(grey("Columns used: " + (plan.mappedColumns().isEmpty() ? "none" : String.join(", ", plan.mappedColumns()))));
+            if (!plan.ignoredColumns().isEmpty()) body.getChildren().add(grey("Columns ignored (no matching field): " + String.join(", ", plan.ignoredColumns())));
+            for (String p : plan.problems()) {
+                Label l = new Label("⚠ " + p);
+                l.setWrapText(true);
+                l.setStyle("-fx-text-fill: #dc2626; -fx-font-size: 12px;");
+                body.getChildren().add(l);
             }
-            ScrollPane sp = new ScrollPane(form);
-            sp.setFitToWidth(true);
-            sp.setPrefViewportHeight(Math.min(440, 90 + fields.size() * 46));
-            sp.setStyle("-fx-background-color: white;");
-            d.getDialogPane().setContent(sp);
-            d.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-            // Save inside the OK handler so a validation message leaves the dialog (and the typed data) on screen.
-            Button ok = (Button) d.getDialogPane().lookupButton(ButtonType.OK);
-            ok.addEventFilter(javafx.event.ActionEvent.ACTION, ev -> {
-                Map<String, Object> input = new HashMap<>();
-                readers.forEach((k, r) -> input.put(k, r.get()));
-                try {
-                    if (existing == null) {
-                        var user = SessionManager.getInstance().getCurrentUser();
-                        recs.create(entity.id(), input, user == null ? 0 : user.getId());
-                    } else recs.update(existing.id(), input);
-                } catch (CustomModuleException ex) {
-                    error(ex.getMessage());
-                    ev.consume();
-                }
-            });
-            if (d.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) refresh();
+            if (plan.errorCount() > 0) {
+                TextArea errs = new TextArea();
+                errs.setEditable(false); errs.setPrefRowCount(8);
+                StringBuilder sb = new StringBuilder();
+                for (CustomCsv.RowPlan r : plan.rows()) if (r.error() != null) sb.append("Row ").append(r.rowNumber()).append(": ").append(r.error()).append('\n');
+                errs.setText(sb.toString());
+                body.getChildren().addAll(new Label("Problems (row numbers match your spreadsheet):"), errs);
+            }
+            body.getChildren().add(grey("Importing the same file twice creates the records twice."));
+            d.getDialogPane().setContent(body);
+            ButtonType go = new ButtonType("Import " + plan.validCount() + " row(s)", ButtonBar.ButtonData.OK_DONE);
+            d.getDialogPane().getButtonTypes().addAll(go, ButtonType.CANCEL);
+            d.getDialogPane().lookupButton(go).setDisable(!plan.importable());
+            if (d.showAndWait().orElse(ButtonType.CANCEL) != go) return;
+            try {
+                var user = SessionManager.getInstance().getCurrentUser();
+                int n = CustomCsv.commit(entity.id(), plan, user == null ? 0 : user.getId());
+                refresh();
+                info("Imported " + n + " record(s).");
+            } catch (CustomModuleException ex) { error(ex.getMessage()); }
         }
     }
 
-    private static String stripZeros(double d) {
-        return d == Math.rint(d) ? String.valueOf((long) d) : java.math.BigDecimal.valueOf(d).stripTrailingZeros().toPlainString();
+    // ── small helpers ─────────────────────────────────────────────────────
+
+    private static Label grey(String t) {
+        Label l = new Label(t);
+        l.setWrapText(true);
+        l.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+        return l;
+    }
+
+    private void info(String msg) {
+        Alert a = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+        com.kaziflow.utils.DialogUtils.makeResizable(a);
+        a.setHeaderText(null);
+        a.showAndWait();
     }
 
     private void error(String msg) {

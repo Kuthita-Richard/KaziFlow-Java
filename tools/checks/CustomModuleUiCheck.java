@@ -105,7 +105,7 @@ public class CustomModuleUiCheck {
         check("one tab per record type", onFx(() -> tabs.getTabs().size()) == 2 && onFx(() -> tabs.getTabs().get(1).getText()).equals("Vehicles") == false);
         check("tab titles use the plural labels", onFx(() -> tabs.getTabs().get(0).getText()).equals("Vehicles") && onFx(() -> tabs.getTabs().get(1).getText()).equals("Mileage Logs"));
         List<Node> tables = new ArrayList<>(); onFx(() -> { for (Tab t : tabs.getTabs()) collect(t.getContent(), TableView.class, tables); return null; });
-        @SuppressWarnings("unchecked") TableView<CustomRecordService.RecordView> tVeh = (TableView<CustomRecordService.RecordView>) tables.get(0), tLog = (TableView<CustomRecordService.RecordView>) tables.get(1);
+        @SuppressWarnings("unchecked") TableView<CustomRecordService.RecordView> tVeh = (TableView<CustomRecordService.RecordView>) tables.get(0), tLog = (TableView<CustomRecordService.RecordView>) tables.get(2); // each tab holds a list table then a (hidden) report table
         check("vehicle list shows both vehicles", onFx(() -> tVeh.getItems().size()) == 2);
         check("mileage list shows the 3 logs", onFx(() -> tLog.getItems().size()) == 3);
         check("columns = fields marked 'show in list' + actions (Vehicle: Registration, Capacity, Total km, actions)", onFx(() -> tVeh.getColumns().size()) == 4);

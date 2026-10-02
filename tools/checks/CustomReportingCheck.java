@@ -194,6 +194,13 @@ public class CustomReportingCheck {
         check("...and wrote nothing", recs.count(eLog) == cnt);
         check("import is audited as one entry", sql1("SELECT COUNT(*) FROM audit_log WHERE action='CUSTOM_RECORDS_IMPORTED'") != null);
 
+        // ── printable report page ──
+        String html = CustomReportHtml.render("Acme <Hospital> & Co", "Mileage <b>report</b>", "view: \"x\"", List.of("Vehicle", "Km"),
+            List.of(List.of("<script>alert(1)</script>", "1,200"), List.of("O'Brien & \"Sons\"", "5")), List.of("TOTAL", "1,205"), List.of(false, true));
+        check("report page: user text can't inject markup or script", !html.contains("<script>alert") && html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+        check("report page: business name, title and quotes are escaped", html.contains("Acme &lt;Hospital&gt; &amp; Co") && html.contains("Mileage &lt;b&gt;report&lt;/b&gt;") && html.contains("O&#39;Brien &amp; &quot;Sons&quot;"));
+        check("report page: header, TOTAL row, right-aligned numbers, print rules", html.contains("<th>Vehicle</th>") && html.contains("class=\"total\"") && html.contains("<td class=\"r\">1,200</td>") && html.contains("@media print") && html.contains("2 rows"));
+
         // ── performance: 200 vehicles, 20,000 logs ──
         List<Map<String,Object>> vs = new ArrayList<>(); for (int i = 0; i < 200; i++) vs.add(m(regK, "KV" + String.format("%03d", i)));
         long t0 = System.nanoTime(); recs.createBatch(eVeh, vs, 1);

@@ -1,6 +1,6 @@
 # Custom modules (admin-defined departments) — feasibility & design
 
-**Status (v11.28):** feasibility proven on the app's own SQLite version; **phases 1–3 built and verified** (engine, generic runtime screen, builder UI — see "Implementation status" at the bottom). Reports, templates and entity-level permissions are still to do.
+**Status (v11.29):** feasibility proven on the app's own SQLite version; engine, generic runtime screen, builder UI, **saved views & reports, subforms, CSV import/export and validation rules are built and verified** (see "Implementation status" at the bottom). Starter packs, built-in links and entity-level permissions are still to do.
 **Why this exists:** a hospital group with no transport department later adds an Ambulance department, or a non-pharma company adds Staff Transport. An administrator must be able to create that department — naming it and choosing the entities (and their fields) it holds — without a developer, a code change or a redeploy. Closes PROJECT_GUIDE §7.2 / gap #7.
 
 ## 1. Verdict: implementable — without per-field schema changes
@@ -101,4 +101,24 @@ Module **Vehicles & Mileage** (`x_vehicles`): entities **Vehicle Type** (name) �
 **Found while building (real bugs, fixed):** list search ran over raw JSON and matched internal field keys (`_` matched everything) → now `json_each` values only; the WL-mode "read-then-write" transaction in `PermissionAdminService.guarded()` could fail with `SQLITE_BUSY_SNAPSHOT` whenever the async audit writer committed in between (the busy timeout does not apply in that case) → bounded retry of the rolled-back transaction (also in the seeder).
 
 **Still to do:** reports (grouped sums beyond the per-list totals), starter-pack import/export (Fleet & Mileage, Assets, Requisitions from the HMIS reference), lookups into built-in entities, Draft→Final states, per-branch availability, Swahili labels, optimistic locking for concurrent LAN edits, a live-socket test of record creation from a client PC.
+
+---
+
+## Implementation status (v11.29) — the "Access-style" layer
+
+Built on the v11.28 engine, verified with `tools/checks/CustomReportingCheck` (88 assertions, real SQLite, incl. a 20,000-record performance run) and `CustomReportingUiCheck` (19, real JavaFX; screens rendered and inspected).
+
+| Feature | What exists |
+|---|---|
+| **Validation rules** | Per-field min/max (numbers bound the value, text bounds its length) with an optional custom message; enforced on every create/update/import; additive migration for older databases (`custom_fields.min_value/max_value/validation_message`). Ignored for types where a range is meaningless. |
+| **Views & reports** (`CustomQueryService`) | Conditions (is / is not / > / ≥ / < / ≤ / contains / is empty / is not empty), sort, group by a field or by month/year of a date, totals (sum / average / smallest / largest + record count), grand totals, saved per record type and shared. Relative date tokens (`@today`, `@month_start`, `@month_end`, `@year_start`, `@days_ago_N`) keep a saved "this month" view correct. Built with dropdowns (`CustomViewEditorDialog`) — no query is ever typed. |
+| **Subforms** (`CustomRecordForm`) | Opening a record shows every record type that links to it (a Vehicle's Mileage Logs), filtered to that record, with add / edit / delete in place; the parent link is pre-filled and locked; buttons follow the CHILD module's Create/Write/Delete access. |
+| **CSV** (`CustomCsv`) | Export of a list or report (UTF-8 with BOM for Excel; links as titles; leading `=`/`+`/`@` defused against spreadsheet-formula injection). Import is two-step: plan (column matching by header label, per-row problems with spreadsheet row numbers, nothing written) then commit of the valid rows in ONE transaction. Tolerates `;` or `,` delimiters, `dd/mm/yyyy`, `KES 1,200`, yes/no, case-insensitive link and choice matching. No de-duplication. |
+| **Printable report** (`CustomReportHtml`) | A self-contained, print-styled HTML page (browser → print / save as PDF), every value HTML-escaped. |
+
+**Decisions taken:** filters, sorting and grouping work on STORED fields; calculated fields can be shown in a list but not filtered/sorted/grouped (they're computed per record in Java); views are shared by everyone with access to the module, and saving/deleting one needs Write on the module; reports page through the browser rather than `PrinterJob` (robust, testable, matches `ReceiptPrinter`'s approach).
+
+**Performance, measured on SQLite 3.44.1 with 20,000 records / 200 vehicles (this sandbox):** grouped report ~200 ms, monthly report with a filter ~150 ms, filtered list (1,000 rows + totals) ~200 ms, plain list ~65 ms, full-scan text search ~130 ms, bulk create (one transaction) ~1.2 s. Two inefficiencies found by this measurement and fixed: the schema check ran on every connection and each row re-read its field definitions and re-verified link targets (bulk create 24 s → 1.2 s; every existing list also got ~20× faster).
+
+**Not verified / still to do:** the field-validation inputs in the builder dialog and the import preview dialog were compiled and their logic tested through the services, but the modal dialogs themselves were not driven end-to-end; opening the printable page in a real browser (`Desktop.open`) is unexercised here; no live-socket test from a LAN client PC; Excel files (`.xlsx`) aren't read directly (save as CSV UTF-8); the 50–100k-record range is untested.
 
