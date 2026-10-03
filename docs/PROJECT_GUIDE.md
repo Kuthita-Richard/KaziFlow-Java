@@ -115,6 +115,10 @@ Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(p
 - Any user-visible text going into generated HTML must go through `CustomReportHtml.esc`; any cell going into CSV through `CustomCsv.quote` (defuses `=`/`+`/`@` formula injection).
 - In WAL mode a transaction that reads-then-writes can fail instantly with `SQLITE_BUSY_SNAPSHOT` (the busy timeout doesn't apply) when another connection commits in between — the audit writer does, constantly. Wrap such transactions in a bounded retry (see `PermissionAdminService.guarded`).
 
+### 4.9 The HMIS sample company — what it teaches (v11.30)
+
+`docs/reference/HMIS_Feature_Reference.md` describes a real Kenyan hospital system from 47 sidebar screenshots; `docs/reference/hmis_menu_catalog.tsv` holds all 405 menu entries as data, and `tools/hmis_catalog_stats.py` reproduces the numbers. Read `docs/design/hmis-learnings.md` before planning any "system module": it measures the menu (58% reports + lists; 41% mechanical register/view CRUD; 75% not hospital-specific; 8% generic workflow states), compares it with KaziFlow area by area (verified against the schema), and gives a prioritised plan (numbering service → lifecycle engine → links to built-in records → starter packs → HR depth → accounting core → scoped permissions → sidebar groups).
+
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
 - ✅ Currency, Payroll tax (all statutory rates), VAT, Delivery pricing (per-km + named overrides), which modules are active per installation
 - ❌ **Loyalty points earn-rate** — hardcoded "1 point per KES 100 spent" in `SalesView`. Same treatment as VAT/payroll would apply here; flagged, not yet built.
@@ -283,6 +287,7 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Positions & Access editor | `views/PositionsAccessView.java` |
 | Greying controls by permission | `utils/PermissionGuard.java` |
 | Custom (admin-built) modules: definitions / records / formulas | `custom/CustomModuleService.java`, `custom/CustomRecordService.java`, `custom/FormulaEngine.java` |
+| HMIS reference, menu catalog (data) and its statistics | `docs/reference/HMIS_Feature_Reference.md`, `docs/reference/hmis_menu_catalog.tsv`, `tools/hmis_catalog_stats.py`, `docs/design/hmis-learnings.md` |
 | Custom modules: views & reports engine / editor dialog | `custom/CustomQueryService.java`, `custom/CustomViewEditorDialog.java` |
 | Custom modules: generated form + subforms / CSV / printable page / formatting | `custom/CustomRecordForm.java`, `custom/CustomCsv.java`, `custom/CustomReportHtml.java`, `custom/CustomFormat.java` |
 | Custom modules: generic runtime screen / builder / registry glue | `custom/CustomModuleView.java`, `custom/CustomModuleBuilderView.java`, `custom/CustomModule.java`, `custom/CustomModuleLoader.java` |
@@ -314,4 +319,7 @@ Every version from the original upload (v9) onward has its own dated entry in `d
 - **AI Assistant panel is not permission-gated:** a user without Finance access could still ask it about financial data.
 - **Own position changes** show in the sidebar after the next sign-in (permissions themselves refresh within seconds).
 - **`SessionManager.getBusinessSetting()` is a dead stub** that always returns `""` (zero callers). Business settings are read straight from the `settings` table (see `ReceiptPrinter`, `CustomModuleService.businessName()`); the stub should be implemented or deleted.
+- **Invoice numbers are `COUNT(*)+1`** (`SaleDAO.generateSaleNumber`) on a `UNIQUE` column, read then written in one transaction: in server/client LAN mode two PCs selling together can fail the second with `SQLITE_BUSY_SNAPSHOT` (the v11.28 read-then-write pattern, in the checkout path). Not configurable per document type. Fix = a sequence service with atomic next-number and bounded retry (hmis-learnings.md §5 item 1).
+- **Payment methods are a `CHECK` constraint** on `sales` (`cash/mpesa/card/bank`): adding one needs a schema migration. Should be master data.
+- **The Finance "Chart of Accounts" screen is a derived summary**, not a ledger; `accounts.balance` is never written by any code, and "Cash & Bank" is estimated from net cash flow. There is no journal / double-entry layer (hmis-learnings.md §3).
 

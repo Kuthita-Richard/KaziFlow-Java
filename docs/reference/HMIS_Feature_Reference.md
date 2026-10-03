@@ -12,6 +12,14 @@ The original screenshots only show the **expanded left-hand navigation menu** (n
 screens were captured), so explanations below are based on standard hospital/clinic ERP domain
 knowledge plus the menu wording itself.
 
+**Verification (v11.30):** the 47 screenshots were re-read by OCR and checked against this document. Every
+menu entry is covered; two were missing and have been added below (Pharmacy → *Procedures Report*;
+Patient Invoices → *Miscellaneous Income Invoices*). The whole menu is also captured as structured data in
+`hmis_menu_catalog.tsv` (405 entries, each tagged by kind), with reproducible statistics from
+`tools/hmis_catalog_stats.py`. What KaziFlow should learn from it is in `docs/design/hmis-learnings.md`.
+Note the screenshots show **NHIF** — Kenya replaced NHIF with SHIF in October 2024 (KaziFlow's payroll already
+uses SHIF), so treat NHIF-specific entries as legacy.
+
 ---
 
 ## 1. Price List
@@ -84,6 +92,7 @@ Full drug dispensing and stock control.
 - **Edit Medication Group** — drug categorization (e.g., by therapeutic class).
 - **Medication Last Purchase Details** — last supplier cost, for pricing/margin decisions.
 - **Medication Costing & Consumption** — cost accounting and usage analytics.
+- **Procedures Report** — also listed inside Pharmacy (between *Medicine Internal Transfers Report* and *Medication Prices*), as well as under Nursing Station and Procedures.
 
 ## 8. Procedures
 - **Procedures Report**, **Edit Procedures Group**, **Procedures Referral** — a catalog of billable clinical procedures (minor surgery, dressing, etc.) separate from lab/radiology/pharmacy.
@@ -119,7 +128,7 @@ Cashier/billing operations layer.
 Formal invoice generation and lifecycle.
 - **Individual Accounts (Outpatient / Inpatient — discharged / inpatient — yet to be discharged)** — invoice generation split by patient status.
 - **View Invoices** — same splits, for viewing.
-- **View Miscellaneous Income Invoices**
+- **Miscellaneous Income Invoices** (create) / **View Miscellaneous Income Invoices** — invoices for income that isn't a clinical service.
 - **Create/View Consultation Retainer Invoice** — for retainer-style corporate consultation contracts.
 - **Dispatch Invoices / Dispatched Invoices Report / Invoices Yet To Be Dispatched Report** — a workflow for sending invoices out (e.g., to insurers or corporate clients) and tracking what's pending.
 - **Confirm Dispatched Invoices & Create Batch / Batched Invoices Report** — batching invoices, likely for bulk insurer submission.

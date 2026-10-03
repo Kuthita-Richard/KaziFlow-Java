@@ -1,0 +1,408 @@
+# HMIS sidebar menu entries transcribed from the 47 screenshots (OCR + manual check). Columns: module <TAB> kind <TAB> menu entry.
+# kind: M register a master record | L list/view | T transaction / data entry | W workflow action (confirm, reverse, dispatch, close, reconcile...) | R report | S setting / configuration | Q live work queue
+module	kind	entry
+Price List	L	Services Price List
+Price List	L	Drugs & Non-Pharm Price List
+Price List	L	Ward Charges
+Appointments	Q	Patient Queue
+Appointments	L	Patient Visits
+Appointments	R	Patient Visits Report
+Appointments	R	Patient Visits Report (Grouped By Diagnosis)
+Appointments	R	Patient Visits Report (Including Walk-Ins)
+Appointments	L	View Appointments
+Appointments	L	View Appointments (Patient Departmental Status)
+Appointments	L	View Appointments Yet To Be Closed / Finalized
+Appointments	T	Upload Appointment Files
+Appointments	R	Invoices Report
+Appointments	Q	Walk-In Patients Queue (Close Visit)
+Appointments	R	Closed Walk-In Visits Report
+Appointments	R	View Appointments (Patient Departmental Turn-Around-Time)
+Patients	T	Register Out-Patient
+Patients	T	Admit Patient
+Patients	L	View Patients
+Patients	L	View Admitted Patients
+Patients	L	View Discharged Patients
+Patients	R	Patient Register Report
+Patients	R	View Current Admitted Patients Report
+Patients	R	View Discharged Patients Report
+Patients	R	Admissions Report
+Patients	R	Admissions Per Doctor Report
+Patients	R	Unoccupied Beds Report
+Patients	T	Upload NHIF Capitation Member List
+Lab	T	Lab Requests (Outpatient)
+Lab	T	Lab Requests (Inpatient)
+Lab	Q	Internal Patient Lab Visits
+Lab	Q	External Patient Lab Visits
+Lab	R	Lab Visits Report
+Lab	R	Lab Visits Report (Per Patient)
+Lab	R	Lab Visits Report (Grouped By Test)
+Lab	R	Lab Referrals Report
+Lab	L	Lab Tests Prices
+Lab	M	Register Lab Template
+Lab	L	View Lab Templates
+Lab	S	Lab Templates Order
+Radiology	T	Radiology Requests
+Radiology	Q	Internal Patient Radiology Visits
+Radiology	Q	External Patient Radiology Visits
+Radiology	R	Radiology Visits Report
+Radiology	R	Radiology Visits Report (Per Patient)
+Radiology	L	Radiology Tests Prices
+Nursing Station	T	Record Vital Signs & Allergies
+Nursing Station	L	Triaged Patients
+Nursing Station	T	Patient Monitoring Notes
+Nursing Station	R	Procedures Report
+Nursing Station	T	Upload Appointment Files
+Nursing Station	T	Pharmacy Drugs & Procedure Requests
+Nursing Station	W	Mark Procedures As Complete
+Nursing Station	L	Pharmacy Drugs Requests List
+Nursing Station	Q	Patients Queue
+Nursing Station	W	Bill Packages
+Nursing Station	W	Bill Dialysis Package
+Pharmacy	T	New Over The Counter (OTC) Request
+Pharmacy	Q	OTC Patients Queue
+Pharmacy	Q	Walk-In Patients Queue
+Pharmacy	W	Confirm Pharmacy Requests
+Pharmacy	W	Reverse Confirmed Pharmacy Requests
+Pharmacy	W	Dispense Out-Patient Pharmacy Drugs
+Pharmacy	W	Dispense In-Patient Pharmacy Drugs
+Pharmacy	W	Dispense Dialysis Patients Pharmacy Drugs
+Pharmacy	W	Delete Undispensed Drugs Requests
+Pharmacy	W	Drugs Dispensed Reversal
+Pharmacy	L	Drugs Dispense History
+Pharmacy	R	Medicine Sales Report
+Pharmacy	R	Sales Summary Per Medicine Report
+Pharmacy	R	Sales Summary Per Patient Report
+Pharmacy	R	Stock Report (Current)(Per medication)
+Pharmacy	R	Stock Report (Current)
+Pharmacy	R	Stock Report (Specify Date)
+Pharmacy	R	Stock Report (Suspended Drugs)
+Pharmacy	R	Stock Movement Report
+Pharmacy	R	Stock Movement Item Summary
+Pharmacy	R	Stocks Reorder Report
+Pharmacy	R	Medicine Batch Expiry Report
+Pharmacy	R	Medicine Batch Expiry Report (Within Three Months)
+Pharmacy	R	Medicine Internal Transfers Report
+Pharmacy	R	Procedures Report
+Pharmacy	L	Medication Prices
+Pharmacy	R	Pharmacy Returns Report
+Pharmacy	S	Medication Sales Visibility Setting
+Pharmacy	M	Edit Medication Group
+Pharmacy	R	Medication Last Purchase Details
+Pharmacy	R	Medication Costing & Consumption
+Procedures	R	Procedures Report
+Procedures	M	Edit Procedures Group
+Procedures	W	Procedures Referral
+Physiotherapy	W	Dispense Physiotherapy Item(s)
+Physiotherapy	W	Dispensed Physiotherapy Items Reversal
+Physiotherapy	L	Physiotherapy Items Dispense History
+Physiotherapy	R	Physiotherapy Items Sales Report
+Physiotherapy	R	Physiotherapy Stock Report
+Physiotherapy	T	Physiotherapy Items Stock Take
+Physiotherapy	R	Physiotherapy Stock Take Report
+Physiotherapy	R	Stocks Reorder Report
+Physiotherapy	R	Stock Movement Report
+Physiotherapy	L	Physiotherapy Item Prices
+Mortuary	S	Storage Fees
+Mortuary	T	New Mortuary Miscellaneous Fees
+Mortuary	L	View Mortuary Miscellaneous Fees
+Mortuary	T	New Mortuary Admission
+Mortuary	L	Mortuary Admissions
+Insurance Payments	T	Insurance Payments
+Insurance Payments	R	Invoices Reconciliation Report
+Donations	T	New Donation
+Donations	L	View Donations
+General Receipts	T	New General Receipt
+General Receipts	L	View General Receipts
+Charges	T	Bill Transport
+Charges	T	Bill Services
+Charges	W	Confirm Patient Charges
+Charges	T	Personal Account Charges
+Charges	W	Reconciliation
+Charges	R	Canceled Charges Report
+Charges	R	Edited Payments Report
+Charges	T	InPatient Cash Deposits
+Charges	W	Close Shift
+Charges	S	Set Patient Billing Limit
+Patient Invoices	T	Individual Accounts (Outpatient)
+Patient Invoices	T	Individual Accounts (Inpatient) Discharged Patients
+Patient Invoices	T	Individual Accounts (Inpatient) Patients Yet To Be Discharged
+Patient Invoices	L	View Invoices (Outpatient)
+Patient Invoices	L	View Invoices (Inpatient) Discharged Patients
+Patient Invoices	L	View Invoices (Inpatient) Patients Yet To Be Discharged
+Patient Invoices	L	View Miscellaneous Income Invoices
+Patient Invoices	T	Create Consultation Retainer Invoice
+Patient Invoices	L	View Consultation Retainer Invoices
+Patient Invoices	T	Miscellaneous Income Invoices
+Patient Invoices	W	Dispatch Invoices
+Patient Invoices	R	Dispatched Invoices Report
+Patient Invoices	R	Invoices Yet To Be Dispatched Report
+Patient Invoices	W	Confirm Dispatched Invoices & Create Batch
+Patient Invoices	R	Batched Invoices Report
+Patient Invoices	T	My Notes
+Insurance Credit Notes & Deductions	T	Insurance Credit Notes
+Insurance Credit Notes & Deductions	T	Insurance Deductions
+Administration	M	Register Item(s)
+Administration	L	View Item(s)
+Administration	L	View Insurance Service Costs
+Administration	L	View Insurance Services Discounts & Withholding Taxes
+Administration	L	View Insurance Medicine Costs
+Administration	L	View Insurance Ward Daily Charges
+Administration	S	Upload Clinic Logo
+Administration	L	Clinic Logo Details
+Administration	S	Consultation Types Costing
+Administration	M	Register Consultation Cost
+Administration	L	View Consultation Cost(s)
+Administration	L	View Patient Registration Charges
+Administration	W	Review Charges
+Administration	M	Register Time Shift
+Administration	L	View Time Shifts
+Administration	M	Register Lab Sub-Tests
+Administration	L	View Lab Sub-Tests
+Administration	S	Lab Sub-Tests Order
+Administration	L	View Doctor Consultancy Costs (Overall)
+Administration	S	Service Type Charges Confirmation Configuration
+Administration	S	Doctors Notes & Results Saving Configuration
+Administration	R	User Activity Logs
+Administration	S	User Passwords Expiration Configuration
+Administration	S	Personal Accounts Usage
+Administration	S	Doctor Notes Categories Visibility
+Administration	S	Consultation Type Selection Point Configuration
+Administration	M	Register Insurance Services Package
+Administration	L	View Insurance Services Packages
+Administration	W	Remove Undispensed Drugs
+Administration	S	Receipt Printer Type
+Administration	S	Diagnosis Display Setting
+Administration	S	Drugs Selling Price Derivation Settings
+Administration	L	Service Costs (Corporate)
+Administration	S	Insurance Medicine Sales Allowance Mapping
+Administration	S	Insurance Services Sales Allowance Mapping
+Administration	S	Invoice Number Per Service Type Setting
+Administration	L	View Supplier Service Costs
+Administration	S	Define Branch Service Cash Costs
+Administration	S	Define Branch Medication Cash Costs
+Administration	L	View Company Service Costs
+Administration	S	Set Insurance Copay Amounts
+Administration	S	Set Company Copay Amounts
+Administration	S	Company / Scheme Medicine Sales Allowance Mapping
+Administration	S	Company / Scheme Services Sales Allowance Mapping
+Administration	L	View Company Ward Daily Charges
+Administration	S	Consultation Types Costing (Branch)
+Administration	L	View Doctor Consultancy Costs (Branch)
+Collections Reports	R	Outpatient Visits Summary Report
+Collections Reports	R	Corporate Accounts Charges Report
+Collections Reports	R	Corporate Accounts Charges Report (Breakdown)
+Collections Reports	R	Insurance Statement Of Account
+Collections Reports	R	Insurance Statement Of Account (Reconciled)
+Collections Reports	R	Debtor Ledger
+Collections Reports	R	Collections per service Report (Corporate)
+Collections Reports	R	Collections per service Report (Non Corporate)
+Collections Reports	R	Collections per service Report (Non Corporate)(Non Detailed)
+Collections Reports	R	Collections grouped By Payment Mode Summary Report
+Collections Reports	R	Collections Per Shift Summary Report
+Collections Reports	R	Collections per service Report (Non Corporate) Grouped Per Payment Mode
+Collections Reports	R	Refunds Report
+Collections Reports	R	Corporate Accounts Receivables Aging Report
+Collections Reports	R	Receivables Balances Report
+Collections Reports	R	NHIF Rebate Report
+Collections Reports	R	Insurance Out-Patient Capitation Report
+Collections Reports	R	Insurance / Corporate Summary Report
+Collections Reports	R	Admissions Report (Billed Amounts & Balances)
+Collections Reports	R	Pesapal Transactions Utilization & Balances
+Collections Reports	W	Close Pesapal Transactions
+Ministry Of Health Reports	R	Ministry Of Health Reports
+Ministry Of Health Reports	S	Map ICD 10 Diseases To Ministry Diseases
+Ministry Of Health Reports	S	Map Lab Tests
+Register Payroll Items	M	Register Employee Category
+Register Payroll Items	M	Register Employee
+Register Payroll Items	M	Register Tax Status
+Register Payroll Items	M	Register Overtime Type
+Register Payroll Items	M	Register Loan Type
+Register Payroll Items	M	Register Benefit
+Register Payroll Items	M	Register Earning
+Register Payroll Items	M	Register Deduction
+Register Payroll Items	M	Register Job Title
+Register Payroll Items	M	Register Bank
+Register Payroll Items	M	Register Provident Fund Bracket
+Payroll Transactions	T	Create Payroll
+Payroll Transactions	T	Advance Pay
+Payroll Transactions	T	Employee Loan Details
+Payroll Transactions	T	Regular Time Details
+Payroll Transactions	T	Overtime Details
+Payroll Transactions	T	Tardiness Details
+Payroll Transactions	T	Employee Benefit
+Payroll Transactions	T	Employee Monthly Deduction
+Payroll Transactions	T	Employee Earning
+Payroll Transactions	T	Employee Deduction
+View Payroll Items	L	View Employee Categories
+View Payroll Items	L	View Employees
+View Payroll Items	L	View Tax Brackets
+View Payroll Items	L	View Tax Status
+View Payroll Items	L	View NHIF Brackets
+View Payroll Items	L	View NSSF Brackets
+View Payroll Items	L	View Overtime Types
+View Payroll Items	L	View Loan Types
+View Payroll Items	L	View Benefits
+View Payroll Items	L	View Earnings
+View Payroll Items	L	View Deductions
+View Payroll Items	L	View Job Titles
+View Payroll Items	L	View Banks
+View Payroll Items	L	View Benefits' Minimum Taxable Aggregate
+View Payroll Items	L	View Fringe Benefit Tax Rate
+View Payroll Items	L	View Market Lending Rates
+View Payroll Items	L	View Provident Fund Brackets
+View Payroll Transactions	L	View Payroll
+View Payroll Transactions	L	View Advance Pay
+View Payroll Transactions	L	View Employee Loan Details
+View Payroll Transactions	L	View Regular Time Details
+View Payroll Transactions	L	View Overtime Details
+View Payroll Transactions	L	View Tardiness Details
+View Payroll Transactions	L	View Employee Benefits
+View Payroll Transactions	L	View Employee Monthly Deductions
+View Payroll Transactions	L	View Employee Earnings
+View Payroll Transactions	L	View Employee Deductions
+View Payroll Transactions	L	View Employee NSSF & Provident Fund Volunteered Amounts
+Payroll Reports	R	Employee List Report
+Payroll Reports	R	View Payroll
+Payroll Reports	R	Specific Payments Reports
+Payroll Reports	R	Payments Summary Report
+Leave Management	S	User Leave Requests Approvals Privileges
+Leave Management	M	New Leave Period
+Leave Management	L	View Leave Periods
+Leave Management	M	New Leave Type
+Leave Management	L	View Leave Types
+Leave Management	M	New Holiday
+Leave Management	L	View Holidays
+Leave Management	S	Working Days
+Leave Management	M	New Employee Leave Entitlement
+Leave Management	L	View Employee Leave Entitlements
+Leave Management	L	View Leave Requests
+Leave Management	R	Leave Balances Report
+Leave Management	R	Employees Currently On Leave Report
+Leave Management	R	Leave History Report
+Performance Management	S	Define Employee Supervisors
+Performance Management	M	New Key Performance Indicator
+Performance Management	L	View Key Performance Indicators
+Performance Management	T	New Employee Performance Review
+Performance Management	L	View Employee Performance Reviews
+Performance Management	R	Employees Performance Reviews Report
+Chart of Accounts	M	Register Account
+Chart of Accounts	L	View Chart Of Accounts
+Chart of Accounts	R	Print / Export Chart Of Accounts
+Chart of Accounts	R	Chart Of Accounts Report
+Chart of Accounts	M	New Service Type
+Chart of Accounts	S	Service Types Credit Accounts
+Chart of Accounts	S	Consultation Categories Credit Accounts
+Chart of Accounts	S	Service Categories Credit Accounts
+Chart of Accounts	S	Item Categories Credit Accounts
+Opening Balances	T	Insurance Opening Balances
+Opening Balances	T	Suppliers Opening Balances
+General Journal	T	New Journal Entry
+General Journal	L	View Journal Entries
+General Journal	T	New Compound Journal
+General Journal	L	View Compound Journals (Unbalanced)
+General Journal	L	View Compound Journals (Yet To Be Finalized)
+Banking	M	New Bank Account
+Banking	L	View Bank Accounts
+Banking	L	View Bank Account Transactions
+Banking	R	Print Bank Account Transactions
+Banking	W	Bank Account Reconciliation
+Banking	R	Bank Account Reconciliation Report
+Banking	R	Bank Account Reconciliation Report (Select multiple references)
+Petty Cash	T	Petty Cash Transactions
+Petty Cash	R	Print Petty Cash Transactions
+Bank Loans	M	New Bank Loan
+Bank Loans	L	View Bank Loans
+Taxes	M	Register Tax
+Taxes	L	View Taxes
+Terms Of Payment	M	Register Term Of Payment
+Terms Of Payment	L	View Terms Of Payment
+Payment Methods	M	Register Payment Method
+Payment Methods	L	View Payment Methods
+Suppliers	M	Register Supplier
+Suppliers	L	View Suppliers
+Departments	M	Register Department
+Departments	L	View Departments
+Cost Centres	M	Register Cost Centre
+Cost Centres	L	View Cost Centres
+Items	M	Register Item Category
+Items	L	View Item Categories
+Items	M	Register Item Measuring Unit
+Items	L	View Item Measuring Units
+Items	M	Register Brand
+Items	L	View Brands
+Items	M	Register Item
+Items	L	View Items
+Items	L	View Items (Edit Multiple)
+Items	R	Print Items List
+Items	S	Store Items Mapping
+Items	S	Store Item Categories Mapping
+Assets	M	Register Asset Category
+Assets	L	View Asset Categories
+Assets	M	Register Asset Location
+Assets	L	View Asset Locations
+Assets	M	Register Asset
+Assets	L	View Assets
+Assets	R	Asset Register
+Assets	R	Asset Register Entry Sheet
+Vehicles & Mileage	M	Register Vehicle Type(s)
+Vehicles & Mileage	L	View Vehicle Types
+Vehicles & Mileage	M	Register Vehicles
+Vehicles & Mileage	L	View Vehicles
+Vehicles & Mileage	L	View Vehicles List
+Vehicles & Mileage	T	New Vehicle Mileage Details
+Vehicles & Mileage	L	View Vehicle Mileage Details
+Vehicles & Mileage	R	View Vehicle Mileage Report
+Money Out	T	New Purchase Order
+Money Out	L	View Purchase Orders
+Money Out	T	New Supplier Invoice
+Money Out	L	View Supplier Invoices
+Money Out	L	View Payment Vouchers
+Money Out	L	View Supplier Credit Notes
+Money Out	T	New Supplier Quotation
+Money Out	L	View Supplier Quotations
+Requisitions	T	New Store Requisition
+Requisitions	L	View Store Requisitions
+Requisitions	T	New Order Note
+Requisitions	L	View Order Notes
+Stores	M	Register Store
+Stores	L	View Stores
+Stores	W	Issue Item(s) To Cost Center
+Stores	L	View Items Issued To Cost Centers
+Stores	W	Loan Item(s) To Cost Center
+Stores	L	View Items Loaned To Cost Centers
+Stores	L	View Internal Transfers
+Accounting Reports	R	General Ledger
+Accounting Reports	R	General Ledger (Inclusive Of Patient Invoices Yet To Be Finalized)
+Accounting Reports	R	Trial Balance
+Accounting Reports	R	Profit & Loss
+Accounting Reports	R	Profit & Loss (Inclusive Of Invoices Yet To Be Finalized)
+Accounting Reports	R	Profit & Loss (Month Comparison)
+Accounting Reports	R	Balance Sheet
+Accounting Reports	R	Accounts Payable Aging Report
+Accounting Reports	R	Accounts Payable Aging Report (Totals Only)
+Accounting Reports	R	Supplier Balances Report
+Accounting Reports	R	Supplier Ledger Report
+Inventory Reports	R	Items Issued To Cost Centers
+Inventory Reports	R	Item Loan Balances
+Inventory Reports	R	Internal Transfers
+Inventory Reports	R	Stock Report
+Inventory Reports	R	Stock Re-Order Report
+Inventory Reports	R	Supplier Invoices Report
+Inventory Reports	R	Store Requisitions Report
+Inventory Reports	R	Purchase Orders Report
+Inventory Reports	R	Rejected Purchase Orders Report
+Inventory Reports	R	Stock Movement Report
+Inventory Reports	R	Stock Take Report
+Inventory Reports	R	Stock Take Yet To Be Posted Report
+Send SMS	T	Send Sms (Open)
+Send SMS	T	Send Sms (To Clients Who Have Visited In A Given Period)
+Send SMS	M	New Sms Template
+Send SMS	L	View Sms Templates
+Management Reports	R	Monthly Reports
+Management Reports	R	Daily Statistics
+Payslips, Leave Requests & Self Evaluation	L	View Payslips
+Payslips, Leave Requests & Self Evaluation	T	New Leave Request
+Payslips, Leave Requests & Self Evaluation	L	View Leave Requests
+Payslips, Leave Requests & Self Evaluation	L	My Performance Reviews
+Payslips, Leave Requests & Self Evaluation	L	My Subordinates Performance Reviews
+Navigation Style	S	Preferred Navigation Style
