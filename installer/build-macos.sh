@@ -14,7 +14,7 @@ set -e
 APP_NAME="KaziFlow ERP"
 APP_VERSION="1.0.0"
 MAIN_CLASS="com.kaziflow.App"
-VENDOR="Richard Kuthita"
+VENDOR="Tihems Software"
 ICONSET_DIR="installer/icons/kaziflow.iconset"
 ICNS_FILE="installer/icons/kaziflow.icns"
 
@@ -67,7 +67,7 @@ jpackage \
   --dest target/installer \
   --mac-package-name "KaziFlow ERP" \
   --description "Offline-first ERP for Kenyan SMEs" \
-  --copyright "Copyright (c) 2026 Richard Kuthita" \
+  --copyright "Copyright (c) 2026 Tihems Software" \
   --license-file installer/LICENSE.txt
 
 echo ""

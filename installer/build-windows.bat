@@ -14,7 +14,7 @@ setlocal
 set APP_NAME=KaziFlow ERP
 set APP_VERSION=1.0.0
 set MAIN_CLASS=com.kaziflow.App
-set VENDOR=Richard Kuthita
+set VENDOR=Tihems Software
 set ICON=installer\icons\kaziflow.ico
 
 echo.
@@ -66,7 +66,7 @@ jpackage ^
   --win-dir-chooser ^
   --win-menu-group "KaziFlow ERP" ^
   --description "Offline-first ERP for Kenyan SMEs" ^
-  --copyright "Copyright (c) 2026 Richard Kuthita" ^
+  --copyright "Copyright (c) 2026 Tihems Software" ^
   --license-file installer\LICENSE.txt
 
 if errorlevel 1 (

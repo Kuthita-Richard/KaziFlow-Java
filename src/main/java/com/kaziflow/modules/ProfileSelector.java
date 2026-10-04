@@ -70,7 +70,7 @@ public class ProfileSelector {
         VBox header = new VBox(6);
         header.setAlignment(Pos.CENTER);
         header.setPadding(new Insets(28, 20, 16, 20));
-        Label title = new Label("Welcome to KaziFlow ERP");
+        Label title = new Label("Welcome to "+com.kaziflow.brand.Brand.productFullName());
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
         Label subtitle = new Label("Pick the business type that's closest to yours — you can change this later in Settings.");
         subtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b;");

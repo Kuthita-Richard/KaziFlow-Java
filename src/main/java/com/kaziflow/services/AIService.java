@@ -112,12 +112,12 @@ public class AIService {
      */
     private String buildSystemPrompt() {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are the KaziFlow ERP AI Assistant, embedded inside a desktop business " +
+        sb.append("You are the "+com.kaziflow.brand.Brand.productFullName()+" AI Assistant, embedded inside a desktop business " +
             "management application used by Kenyan SMEs.\n\n");
 
         sb.append("Your role:\n");
         sb.append("- Answer questions about the business using the live data below\n");
-        sb.append("- Guide users on how to use KaziFlow ERP features\n");
+        sb.append("- Guide users on how to use "+com.kaziflow.brand.Brand.productFullName()+" features\n");
         sb.append("- Provide actionable business insights\n");
         sb.append("- Keep answers concise and practical\n");
         sb.append("- You can respond in English or Swahili depending on the user's language\n\n");
@@ -176,12 +176,12 @@ public class AIService {
             } catch (Exception ignored) {}
 
         } catch (Exception e) {
-            sb.append("(Live data unavailable — answer based on general KaziFlow knowledge)\n");
+            sb.append("(Live data unavailable — answer based on general "+com.kaziflow.brand.Brand.productName()+" knowledge)\n");
         }
 
         sb.append("=====================================\n\n");
 
-        sb.append("KaziFlow ERP Modules available:\n");
+        sb.append(com.kaziflow.brand.Brand.productFullName()+" Modules available:\n");
         sb.append("Dashboard, Inventory, Sales & POS (M-Pesa), Purchases, ");
         sb.append("Employees & HR, Payroll, Finance, Reports, Deni Book, ");
         sb.append("Quotations, Settings, Help\n\n");

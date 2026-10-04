@@ -18,7 +18,9 @@ public final class CustomReportHtml {
                                 List<Boolean> rightAligned) {
         StringBuilder sb = new StringBuilder(4096);
         sb.append("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">")
-          .append("<title>").append(esc(title)).append("</title><style>")
+          .append("<title>").append(esc(title)).append("</title>")
+          .append("<link rel=\"icon\" href=\"").append(com.kaziflow.brand.Brand.dataUri("icon-32.png")).append("\">")
+          .append("<style>")
           .append("body{font-family:Segoe UI,Arial,sans-serif;color:#1e293b;margin:32px;}")
           .append("h1{font-size:22px;margin:0 0 4px;} .sub{color:#64748b;font-size:13px;margin-bottom:18px;}")
           .append("table{border-collapse:collapse;width:100%;font-size:13px;}")
@@ -47,7 +49,11 @@ public final class CustomReportHtml {
         }
         sb.append("</tbody></table><div class=\"foot\">Printed ")
           .append(esc(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm"))))
-          .append(" · ").append(rows.size()).append(rows.size() == 1 ? " row" : " rows").append("</div></body></html>");
+          .append(" · ").append(rows.size()).append(rows.size() == 1 ? " row" : " rows")
+          .append("<br><img src=\"").append(com.kaziflow.brand.Brand.dataUri("icon-32.png"))
+          .append("\" alt=\"\" style=\"height:14px;vertical-align:middle;margin-right:5px\">")
+          .append(esc(com.kaziflow.brand.Brand.poweredBy())).append(" · ").append(esc(com.kaziflow.brand.Brand.lineage()))
+          .append("</div></body></html>");
         return sb.toString();
     }
 

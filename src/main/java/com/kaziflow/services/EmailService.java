@@ -121,7 +121,7 @@ public class EmailService {
                 sendCommand(out, "DATA");
                 readResponse(in, "354");
 
-                String from = (fromName != null && !fromName.isBlank() ? fromName : "KaziFlow ERP") + " <" + username + ">";
+                String from = (fromName != null && !fromName.isBlank() ? fromName : com.kaziflow.brand.Brand.productFullName()) + " <" + username + ">";
                 String normalizedBody = bodyText.replace("\r\n", "\n").replace("\n", "\r\n");
                 // RFC 5321 §4.5.2 dot-stuffing: any line that starts with a literal "."
                 // must have it doubled, or an SMTP server reads that line as the end-of-DATA

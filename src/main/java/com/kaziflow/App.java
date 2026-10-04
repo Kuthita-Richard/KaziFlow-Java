@@ -15,9 +15,9 @@ import javafx.stage.Stage;
 public class App extends Application {
 
     private static final String DB_PATH =
-        System.getProperty("user.home") + "/KaziFlowERP/kaziflow.db";
+        com.kaziflow.utils.AppPaths.dbFile();
     private static final String DB_DIR =
-        System.getProperty("user.home") + "/KaziFlowERP";
+        com.kaziflow.utils.AppPaths.dataDir();
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -137,7 +137,8 @@ public class App extends Application {
             DatabaseEncryption.getInstance(DB_DIR).shutdownEncrypt(DB_PATH);
         });
 
-        primaryStage.setTitle("KaziFlow ERP");
+        com.kaziflow.brand.BrandAssets.installGlobalWindowIcons();   // main window + every dialog/alert/report window
+        primaryStage.setTitle(com.kaziflow.brand.Brand.productFullName());
         primaryStage.setMinWidth(1200);
         primaryStage.setMinHeight(720);
         primaryStage.centerOnScreen();
@@ -156,7 +157,7 @@ public class App extends Application {
             javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                 javafx.scene.control.Alert.AlertType.INFORMATION);
             alert.setTitle("Update Available");
-            alert.setHeaderText("KaziFlow ERP " + version + " is available");
+            alert.setHeaderText(com.kaziflow.brand.Brand.productFullName()+" " + version + " is available");
             alert.setContentText("You are on v" + com.kaziflow.services.UpdateService.CURRENT_VERSION +
                 ".\nVisit the link below to download the update:\n" + url);
             alert.getButtonTypes().setAll(
@@ -177,7 +178,7 @@ public class App extends Application {
     /** Prompts the user for the database passphrase at startup. */
     private char[] promptPassphrase(Stage owner) {
         Dialog<char[]> dialog = new Dialog<>();
-        dialog.setTitle("KaziFlow ERP — Database Passphrase");
+        dialog.setTitle(com.kaziflow.brand.Brand.productFullName()+" — Database Passphrase");
         dialog.setHeaderText("This database is encrypted.\nEnter your passphrase to continue.");
         dialog.initOwner(owner);
 

@@ -14,7 +14,7 @@ APP_NAME="kaziflow-erp"
 APP_DISPLAY_NAME="KaziFlow ERP"
 APP_VERSION="1.0.0"
 MAIN_CLASS="com.kaziflow.App"
-VENDOR="Richard Kuthita"
+VENDOR="Tihems Software"
 ICON="installer/icons/kaziflow_256.png"
 
 echo ""
@@ -53,7 +53,7 @@ jpackage \
   --linux-menu-group "Office" \
   --linux-app-category "office" \
   --description "Offline-first ERP for Kenyan SMEs" \
-  --copyright "Copyright (c) 2026 Richard Kuthita" \
+  --copyright "Copyright (c) 2026 Tihems Software" \
   --license-file installer/LICENSE.txt
 
 echo ""

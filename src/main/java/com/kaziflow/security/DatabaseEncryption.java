@@ -102,7 +102,7 @@ public class DatabaseEncryption {
         props.setProperty("kaziflow.version", "1.0");
         Files.createDirectories(Paths.get(dataDir));
         try (OutputStream out = Files.newOutputStream(propsPath)) {
-            props.store(out, "KaziFlow ERP Installation Properties — DO NOT DELETE");
+            props.store(out, com.kaziflow.brand.Brand.productFullName() + " Installation Properties — DO NOT DELETE");
         }
         return salt;
     }
@@ -219,7 +219,7 @@ public class DatabaseEncryption {
         props.setProperty("kaziflow.version", "1.0");
         Path propsPath = Paths.get(dataDir, PROPS_FILE);
         try (OutputStream out = Files.newOutputStream(propsPath)) {
-            props.store(out, "KaziFlow ERP Installation Properties");
+            props.store(out, com.kaziflow.brand.Brand.productFullName() + " Installation Properties");
         }
         activeKey = deriveKey(newPassphrase, newSalt);
         encryptDatabase(plainDbPath);

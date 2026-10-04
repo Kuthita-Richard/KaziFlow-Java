@@ -93,7 +93,7 @@ public class AIAssistantView {
         icon.setStyle("-fx-text-fill: #02a870; -fx-font-size: 16px;");
 
         VBox titleBlock = new VBox(1);
-        Label title = new Label("KaziFlow AI");
+        Label title = new Label(com.kaziflow.brand.Brand.productName()+" AI");
         title.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
         Label sub = new Label("Powered by Claude · Live business data");
         sub.setStyle("-fx-text-fill: #64748b; -fx-font-size: 10px;");
@@ -219,7 +219,7 @@ public class AIAssistantView {
         Label icon = new Label("✦");
         icon.setStyle("-fx-font-size: 36px; -fx-text-fill: #02a870;");
 
-        Label title = new Label("KaziFlow AI Assistant");
+        Label title = new Label(com.kaziflow.brand.Brand.productName()+" AI Assistant");
         title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
 
         Label desc = new Label("I have access to your live business data.\nAsk me anything!");
@@ -376,7 +376,7 @@ public class AIAssistantView {
         content.setPadding(new Insets(20));
 
         Label info = new Label(
-            "KaziFlow AI uses Claude by Anthropic.\n" +
+            com.kaziflow.brand.Brand.productName()+" AI uses Claude by Anthropic.\n" +
             "Get a free API key at: console.anthropic.com\n\n" +
             "Your key is stored locally on this device only.\n" +
             "It is never sent anywhere except directly to Anthropic's API."

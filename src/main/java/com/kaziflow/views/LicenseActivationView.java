@@ -44,7 +44,7 @@ public class LicenseActivationView {
         Label icon = new Label("🔑");
         icon.setFont(Font.font(40));
 
-        Label title = new Label("Activate KaziFlow ERP");
+        Label title = new Label("Activate "+com.kaziflow.brand.Brand.productFullName());
         title.setFont(Font.font("Arial", FontWeight.BOLD, 22));
         title.setStyle("-fx-text-fill: #1e293b;");
 
@@ -141,7 +141,7 @@ public class LicenseActivationView {
         boolean ok = license.activate(key);
         if (ok) {
             Toast.success(SceneManager.getInstance().getStage(), "Activated!",
-                "KaziFlow ERP is now licensed. Thank you!");
+                com.kaziflow.brand.Brand.productFullName()+" is now licensed. Thank you!");
             refreshStatusLabel();
             keyInput.clear();
         } else {
@@ -153,17 +153,17 @@ public class LicenseActivationView {
 
     private void openSupportEmail() {
         try {
-            String subject = java.net.URLEncoder.encode("KaziFlow ERP License Request", java.nio.charset.StandardCharsets.UTF_8);
+            String subject = java.net.URLEncoder.encode(com.kaziflow.brand.Brand.productFullName()+" License Request", java.nio.charset.StandardCharsets.UTF_8);
             String body = java.net.URLEncoder.encode(
                 "Machine ID: " + license.machineFingerprint() + "\n" +
                 "Edition requested: \n" +
                 "Business name: \n", java.nio.charset.StandardCharsets.UTF_8);
             java.awt.Desktop.getDesktop().mail(new java.net.URI(
-                "mailto:support@kaziflow.co.ke?subject=" + subject + "&body=" + body));
+                "mailto:" + com.kaziflow.brand.Brand.supportEmail() + "?subject=" + subject + "&body=" + body));
         } catch (Exception e) {
             e.printStackTrace();
             Toast.error(SceneManager.getInstance().getStage(), "Could not open mail client",
-                "Please email support@kaziflow.co.ke with your Machine ID.");
+                "Please email " + com.kaziflow.brand.Brand.supportEmail() + " with your Machine ID.");
         }
     }
 }

@@ -49,7 +49,7 @@ public class ReceiptPrinter {
 
     public String generateReceipt(Sale sale) {
         StringBuilder sb = new StringBuilder();
-        String businessName = settings.getOrDefault("business_name", "KaziFlow Business");
+        String businessName = settings.getOrDefault("business_name", "Your Business");
         String address      = settings.getOrDefault("business_address", "Nairobi, Kenya");
         String pin          = settings.getOrDefault("business_pin", "");
         String footer       = settings.getOrDefault("receipt_footer", "Thank you for your business!");
@@ -134,7 +134,8 @@ public class ReceiptPrinter {
         sb.append(center("Items: " + (sale.getItems() != null ? sale.getItems().size() : 0)
             + "   |   " + sale.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy")))).append("\n");
         sb.append(divider('─')).append("\n");
-        sb.append(center("KaziFlow ERP — kaziflow.co.ke")).append("\n");
+        sb.append(center(com.kaziflow.brand.Brand.poweredBy())).append("\n");
+        sb.append(center(com.kaziflow.brand.Brand.departmentName() + " · " + com.kaziflow.brand.Brand.website())).append("\n");
         sb.append(center("Offline-first ERP for Kenyan SMEs")).append("\n");
 
         return sb.toString();
@@ -186,7 +187,7 @@ public class ReceiptPrinter {
      * uses emoji and short lines since WhatsApp doesn't render fixed-width fonts).
      */
     public String generateWhatsAppReceipt(Sale sale) {
-        String businessName = settings.getOrDefault("business_name", "KaziFlow Business");
+        String businessName = settings.getOrDefault("business_name", "Your Business");
         String footer       = settings.getOrDefault("receipt_footer", "Thank you for your business!");
 
         StringBuilder sb = new StringBuilder();
@@ -259,7 +260,7 @@ public class ReceiptPrinter {
      * essentials: business name, receipt number, total, and payment method.
      */
     public String generateSmsReceipt(Sale sale) {
-        String businessName = settings.getOrDefault("business_name", "KaziFlow");
+        String businessName = settings.getOrDefault("business_name", "Your Business");
 
         StringBuilder sb = new StringBuilder();
         sb.append(businessName).append(": Receipt ")

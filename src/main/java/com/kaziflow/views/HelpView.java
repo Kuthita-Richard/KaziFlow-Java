@@ -57,15 +57,15 @@ public class HelpView {
         VBox header = new VBox(6);
         Label title = new Label("How can we help?");
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
-        Label subtitle = new Label("KaziFlow ERP v2.4.0 — Built for Kenyan SMEs. Find answers, shortcuts, and contact support below.");
+        Label subtitle = new Label("" + com.kaziflow.brand.Brand.productFullName() + " v" + com.kaziflow.brand.Brand.version() + " — " + com.kaziflow.brand.Brand.tagline() + ". Find answers, shortcuts, and contact support below.");
         subtitle.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
         header.getChildren().addAll(title, subtitle);
 
         // ── Quick Links ───────────────────────────────────────────────
         HBox quickLinks = new HBox(12);
         quickLinks.getChildren().addAll(
-            quickLinkCard("📖", "User Guide",      "Step-by-step guides for every module", "https://docs.kaziflow.co.ke"),
-            quickLinkCard("💬", "Community Forum", "Ask questions, share tips with others", "https://community.kaziflow.co.ke"),
+            quickLinkCard("📖", "User Guide",      "Step-by-step guides for every module", "https://docs." + com.kaziflow.brand.Brand.website()),
+            quickLinkCard("💬", "Community Forum", "Ask questions, share tips with others", "https://community." + com.kaziflow.brand.Brand.website()),
             quickLinkCard("🐛", "Report a Bug",    "Found an issue? Let us know instantly",  "https://github.com/kaziflow/erp/issues"),
             quickLinkCard("📞", "Call Support",    "+254 700 KAZI (5294) — Mon–Fri 8am–6pm", null)
         );
@@ -157,11 +157,11 @@ public class HelpView {
             {"How do I reset a user's password?",
              "Go to Settings → Users & Access. Find the user, click the lock icon, and enter a new password. Passwords are hashed with BCrypt — they are never stored in plain text."},
             {"Where is my data stored?",
-             "All data is stored locally in an SQLite database at ~/KaziFlowERP/kaziflow.db. No data leaves your computer unless you explicitly use the M-Pesa API. Go to Settings → Data Management to back up."},
+             "All data is stored locally in an SQLite database at ~/" + com.kaziflow.utils.AppPaths.DATA_DIR_NAME + "/" + com.kaziflow.utils.AppPaths.DB_FILE_NAME + ". No data leaves your computer unless you explicitly use the M-Pesa API. Go to Settings → Data Management to back up."},
             {"How do I process a refund?",
              "Currently, record the refund as a manual expense in Finance → Expenses with category 'Refund', and manually adjust stock in Inventory if goods were returned."},
-            {"Can I use KaziFlow offline?",
-             "Yes — KaziFlow is fully offline-first. All core features (POS, inventory, HR, finance) work without internet. M-Pesa STK push requires an internet connection."},
+            {"Can I use "+com.kaziflow.brand.Brand.productName()+" offline?",
+             "Yes — "+com.kaziflow.brand.Brand.productName()+" is fully offline-first. All core features (POS, inventory, HR, finance) work without internet. M-Pesa STK push requires an internet connection."},
             {"How do I add a new product category?",
              "In Inventory, click the category dropdown on the Add Product form. New categories can be added via the CategoryDAO directly, or contact support to add via Settings in a future update."},
         };
@@ -186,17 +186,17 @@ public class HelpView {
         sysGrid.setPadding(new Insets(8, 0, 0, 0));
 
         String[][] sysInfo = {
-            {"Application",     "KaziFlow ERP v2.4.0"},
+            {"Application",     com.kaziflow.brand.Brand.productFullName() + " v" + com.kaziflow.brand.Brand.version()},
             {"Java Version",    System.getProperty("java.version")},
             {"JavaFX Version",  System.getProperty("javafx.version", "21")},
             {"OS",              System.getProperty("os.name") + " " + System.getProperty("os.arch")},
             {"Database",        "SQLite 3.44 (Offline)"},
-            {"Data Directory",  System.getProperty("user.home") + "/KaziFlowERP/"},
+            {"Data Directory",  com.kaziflow.utils.AppPaths.dataDir() + "/"},
             {"Timezone",        "Africa/Nairobi (EAT, UTC+3)"},
             {"Currency",        "Kenyan Shilling (KES)"},
             {"VAT Rate",        "16% (Standard)"},
-            {"Developer",       "KaziFlow Technologies Ltd"},
-            {"Support Email",   "support@kaziflow.co.ke"},
+            {"Developer",       com.kaziflow.brand.Brand.departmentName() + " (a " + com.kaziflow.brand.Brand.groupName() + " company)"},
+            {"Support Email",   com.kaziflow.brand.Brand.supportEmail()},
             {"License",         "Commercial — Proprietary"},
         };
 
@@ -212,7 +212,7 @@ public class HelpView {
         Button copyInfoBtn = new Button("📋 Copy System Info");
         copyInfoBtn.setStyle("-fx-background-color: #f1f5f9; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 12px; -fx-padding: 6 14; -fx-cursor: hand;");
         copyInfoBtn.setOnAction(e -> {
-            StringBuilder sb = new StringBuilder("KaziFlow ERP System Info\n");
+            StringBuilder sb = new StringBuilder(com.kaziflow.brand.Brand.productFullName()+" System Info\n");
             for (String[] row : sysInfo) sb.append(row[0]).append(": ").append(row[1]).append("\n");
             javafx.scene.input.Clipboard.getSystemClipboard().setContent(
                 new javafx.scene.input.ClipboardContent() {{ putString(sb.toString()); }}
@@ -305,6 +305,6 @@ public class HelpView {
     }
 
     private void openEmail() {
-        openUrl("mailto:support@kaziflow.co.ke?subject=KaziFlow%20ERP%20Feedback");
+        openUrl("mailto:" + com.kaziflow.brand.Brand.supportEmail() + "?subject=" + java.net.URLEncoder.encode(com.kaziflow.brand.Brand.productFullName() + " Feedback", java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"));
     }
 }

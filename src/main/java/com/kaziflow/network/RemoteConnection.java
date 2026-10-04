@@ -37,7 +37,7 @@ public class RemoteConnection implements Connection {
             this.in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
             this.out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
         } catch (IOException e) {
-            throw new SQLException("Could not connect to KaziFlow network server at " + host + ":" + port + " — " + e.getMessage(), e);
+            throw new SQLException("Could not connect to "+com.kaziflow.brand.Brand.productName()+" network server at " + host + ":" + port + " — " + e.getMessage(), e);
         }
     }
 
@@ -53,7 +53,7 @@ public class RemoteConnection implements Connection {
             if (!resp.ok) throw new SQLException("Remote SQL error: " + resp.error);
             return resp;
         } catch (IOException e) {
-            throw new SQLException("Network error talking to KaziFlow server: " + e.getMessage(), e);
+            throw new SQLException("Network error talking to "+com.kaziflow.brand.Brand.productName()+" server: " + e.getMessage(), e);
         }
     }
 

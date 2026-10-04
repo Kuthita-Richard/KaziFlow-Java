@@ -13,8 +13,8 @@ import java.nio.file.Files;
 public class DatabaseManager {
 
     private static DatabaseManager instance;
-    private static final String DB_DIR = System.getProperty("user.home") + "/KaziFlowERP";
-    private static final String DB_PATH = DB_DIR + "/kaziflow.db";
+    private static final String DB_DIR = com.kaziflow.utils.AppPaths.dataDir();
+    private static final String DB_PATH = com.kaziflow.utils.AppPaths.dbFile();
 
     private DatabaseManager() {}
 

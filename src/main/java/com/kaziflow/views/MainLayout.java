@@ -142,7 +142,7 @@ public class MainLayout {
      * activation. Returns an empty (zero-height) Region when fully licensed.
      */
     private Region buildLicenseBanner() {
-        String dataDir = System.getProperty("user.home") + "/KaziFlowERP";
+        String dataDir = com.kaziflow.utils.AppPaths.dataDir();
         com.kaziflow.license.LicenseService license =
             com.kaziflow.license.LicenseService.getInstance(dataDir);
         com.kaziflow.license.LicenseService.Status status = license.checkStatus();
@@ -184,7 +184,7 @@ public class MainLayout {
             javafx.stage.Stage dialogStage = new javafx.stage.Stage();
             dialogStage.initOwner(SceneManager.getInstance().getStage());
             dialogStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            dialogStage.setTitle("Activate KaziFlow ERP");
+            dialogStage.setTitle("Activate " + com.kaziflow.brand.Brand.productFullName());
             dialogStage.setScene(new javafx.scene.Scene(wrapper, 560, 620));
             dialogStage.showAndWait();
         });
@@ -208,11 +208,17 @@ public class MainLayout {
 
         StackPane logoBox = new StackPane();
         logoBox.setStyle("-fx-background-color: #1e2d3d; -fx-background-radius: 8; -fx-padding: 7;");
-        Text logoIcon = new Text("▣");
-        logoIcon.setStyle("-fx-font-size: 16px; -fx-fill: white;");
-        logoBox.getChildren().add(logoIcon);
+        javafx.scene.image.ImageView markImg = com.kaziflow.brand.BrandAssets.mark(true, 30);
+        if (markImg != null) {
+            logoBox.setStyle("-fx-padding: 0;");
+            logoBox.getChildren().add(markImg);
+        } else {   // assets missing: fall back to the old glyph rather than show an empty box
+            Text logoIcon = new Text("▣");
+            logoIcon.setStyle("-fx-font-size: 16px; -fx-fill: white;");
+            logoBox.getChildren().add(logoIcon);
+        }
 
-        Label brandLabel = new Label("KaziFlow ERP");
+        Label brandLabel = new Label(com.kaziflow.brand.Brand.productFullName());
         brandLabel.setStyle("-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;");
 
         brand.getChildren().addAll(logoBox, brandLabel);

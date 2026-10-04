@@ -26,8 +26,8 @@ import java.util.TimerTask;
 public class BackupService {
 
     private static BackupService instance;
-    private static final String DB_DIR = System.getProperty("user.home") + "/KaziFlowERP";
-    private static final String DB_FILE = DB_DIR + "/kaziflow.db";
+    private static final String DB_DIR = com.kaziflow.utils.AppPaths.dataDir();
+    private static final String DB_FILE = com.kaziflow.utils.AppPaths.dbFile();
     private static final String BACKUP_DIR = DB_DIR + "/backups";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 

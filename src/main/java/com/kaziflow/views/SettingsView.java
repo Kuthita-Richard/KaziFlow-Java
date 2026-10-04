@@ -63,7 +63,7 @@ public class SettingsView {
 
         Button viewGuideBtn = new Button("☰ View Guide");
         viewGuideBtn.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 36px; -fx-padding: 0 14; -fx-cursor: hand; -fx-font-size: 13px;");
-        viewGuideBtn.setOnAction(e -> { try { java.awt.Desktop.getDesktop().browse(new java.net.URI("https://docs.kaziflow.co.ke")); } catch (Exception ex) { ex.printStackTrace(); } });
+        viewGuideBtn.setOnAction(e -> { try { java.awt.Desktop.getDesktop().browse(new java.net.URI("https://docs." + com.kaziflow.brand.Brand.website())); } catch (Exception ex) { ex.printStackTrace(); } });
 
         bar.getChildren().addAll(titleBox, sp, viewGuideBtn);
         return bar;
@@ -118,14 +118,14 @@ public class SettingsView {
         String smsColor = smsConfigured ? "#16a34a" : "#94a3b8";
 
         boolean encEnabled = com.kaziflow.security.DatabaseEncryption.getInstance(
-            System.getProperty("user.home") + "/KaziFlowERP")
-            .isEncryptionEnabled(System.getProperty("user.home") + "/KaziFlowERP/kaziflow.db");
+            com.kaziflow.utils.AppPaths.dataDir())
+            .isEncryptionEnabled(com.kaziflow.utils.AppPaths.dbFile());
         String encStatus = encEnabled ? "Enabled (AES-256)" : "Not Enabled";
         String encColor  = encEnabled ? "#16a34a" : "#94a3b8";
 
         com.kaziflow.license.LicenseService licenseSvc =
             com.kaziflow.license.LicenseService.getInstance(
-                System.getProperty("user.home") + "/KaziFlowERP");
+                com.kaziflow.utils.AppPaths.dataDir());
         com.kaziflow.license.LicenseService.Status licStatusEnum = licenseSvc.checkStatus();
         String licenseStatus, licenseColor;
         switch (licStatusEnum) {
@@ -286,7 +286,7 @@ public class SettingsView {
                 dialog.getDialogPane().setPrefWidth(440);
                 javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(12);
                 content.setPadding(new Insets(20));
-                Label info = new Label("KaziFlow AI uses Claude by Anthropic.\n" +
+                Label info = new Label(com.kaziflow.brand.Brand.productName()+" AI uses Claude by Anthropic.\n" +
                     "Get a free API key at: console.anthropic.com\n\n" +
                     "Your key is stored locally on this device only.");
                 info.setWrapText(true); info.setStyle("-fx-text-fill:#475569;-fx-font-size:12px;");
@@ -606,7 +606,7 @@ public class SettingsView {
         javafx.scene.control.TextField userField = field("Username", username);
         javafx.scene.control.PasswordField passField = new javafx.scene.control.PasswordField();
         passField.setPromptText("Password / App Password");
-        javafx.scene.control.TextField fromNameField = field("From Name", fromName.isEmpty() ? "KaziFlow ERP" : fromName);
+        javafx.scene.control.TextField fromNameField = field("From Name", fromName.isEmpty() ? com.kaziflow.brand.Brand.productFullName() : fromName);
 
         f.addRow(0, note);
         f.addRow(1, lbl("SMTP Host"), hostField);
@@ -633,8 +633,8 @@ public class SettingsView {
 
             if (btn == testBtn) {
                 com.kaziflow.utils.AsyncTask.run(
-                    () -> email.send(userField.getText().trim(), "KaziFlow ERP Test Email",
-                        "This is a test email from your KaziFlow ERP installation. If you received this, email receipts are configured correctly."),
+                    () -> email.send(userField.getText().trim(), com.kaziflow.brand.Brand.productFullName()+" Test Email",
+                        "This is a test email from your "+com.kaziflow.brand.Brand.productFullName()+" installation. If you received this, email receipts are configured correctly."),
                     error -> {
                         if (error == null) com.kaziflow.utils.Toast.success(com.kaziflow.utils.SceneManager.getInstance().getStage(),
                             "Test Sent", "Check " + userField.getText().trim() + " for the test email.");
@@ -976,21 +976,21 @@ public class SettingsView {
     private void showLicenseDialog() {
         Dialog<ButtonType> d = new Dialog<>();
         com.kaziflow.utils.DialogUtils.makeResizable(d);
-        d.setTitle("License — KaziFlow ERP");
+        d.setTitle("License — "+com.kaziflow.brand.Brand.productFullName());
         d.getDialogPane().setStyle("-fx-background-color:white;");
         d.getDialogPane().setPrefWidth(560);
         d.getDialogPane().setPrefHeight(620);
 
         com.kaziflow.views.LicenseActivationView activationView =
             new com.kaziflow.views.LicenseActivationView(
-                System.getProperty("user.home") + "/KaziFlowERP");
+                com.kaziflow.utils.AppPaths.dataDir());
         d.getDialogPane().setContent(activationView.getRoot());
         d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         d.showAndWait();
     }
 
     private void showEncryptionDialog() {
-        String dbDir  = System.getProperty("user.home") + "/KaziFlowERP";
+        String dbDir  = com.kaziflow.utils.AppPaths.dataDir();
         String dbPath = dbDir + "/kaziflow.db";
         com.kaziflow.security.DatabaseEncryption enc =
             com.kaziflow.security.DatabaseEncryption.getInstance(dbDir);
@@ -1013,7 +1013,7 @@ public class SettingsView {
         Label info = new Label(enabled
             ? "To change your passphrase, enter your current passphrase and a new one below."
             : "Set a passphrase to encrypt this database with AES-256-GCM.\n" +
-              "You will be prompted for this passphrase every time KaziFlow starts.\n\n" +
+              "You will be prompted for this passphrase every time "+com.kaziflow.brand.Brand.productName()+" starts.\n\n" +
               "⚠ If you forget your passphrase, data cannot be recovered. Store it securely.");
         info.setWrapText(true);
         info.setStyle("-fx-text-fill:#475569;-fx-font-size:12px;");
@@ -1160,7 +1160,7 @@ public class SettingsView {
             testResult.setText("Sending...");
             com.kaziflow.utils.AsyncTask.run(
                 () -> com.kaziflow.services.AfricasTalkingService.getInstance()
-                        .send(testPhoneField.getText().trim(), "KaziFlow ERP: this is a test SMS. If you received this, SMS is configured correctly!"),
+                        .send(testPhoneField.getText().trim(), com.kaziflow.brand.Brand.productFullName()+": this is a test SMS. If you received this, SMS is configured correctly!"),
                 result -> testResult.setText(result),
                 err -> testResult.setText("⚠️ " + err)
             );
@@ -1191,7 +1191,7 @@ public class SettingsView {
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 16 24;");
 
-        Label version = new Label("● System Version: v2.4.0 (Stable)");
+        Label version = new Label("● System Version: v" + com.kaziflow.brand.Brand.version());
         version.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
 
         Label serverStatus = new Label("● Server Status: Operational");

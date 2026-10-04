@@ -86,7 +86,7 @@ public class ReportExportService {
     private void generateSalesCSV(File file) throws Exception {
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
             // Header
-            pw.println("KaziFlow ERP — Sales Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Sales Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println();
             pw.println("Receipt No,Date,Customer,Cashier,Subtotal,Discount,VAT,Total,Payment Method,M-Pesa Ref,Status");
@@ -122,7 +122,7 @@ public class ReportExportService {
 
     private void generateInventoryCSV(File file) throws Exception {
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
-            pw.println("KaziFlow ERP — Inventory Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Inventory Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println();
             pw.println("SKU,Product Name,Category,Supplier,Selling Price,Cost Price,Stock Qty,Min Stock,Unit,Stock Value,Status");
@@ -163,7 +163,7 @@ public class ReportExportService {
 
     private void generateEmployeesCSV(File file) throws Exception {
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
-            pw.println("KaziFlow ERP — Employee Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Employee Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println();
             pw.println("Employee No,Name,Email,Phone,Department,Position,Type,Salary,Hire Date,Status");
@@ -197,7 +197,7 @@ public class ReportExportService {
 
     private void generateExpensesCSV(File file) throws Exception {
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
-            pw.println("KaziFlow ERP — Expenses Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Expenses Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println();
             pw.println("ID,Description,Category,Amount,Payment Method,Receipt No,Date,Notes");
@@ -228,7 +228,7 @@ public class ReportExportService {
 
     private void generatePurchasesCSV(File file) throws Exception {
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
-            pw.println("KaziFlow ERP — Purchases Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Purchases Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println();
             pw.println("PO Number,Supplier,Date,Total Amount,Tax Amount,Payment Method,Payment Status,Status,Notes");
@@ -268,7 +268,7 @@ public class ReportExportService {
         double vatOnPurchases = transDAO.getTotalInputVAT();
 
         try (PrintWriter pw = new PrintWriter(new FileWriter(file))) {
-            pw.println("KaziFlow ERP — Finance Summary Report");
+            pw.println(com.kaziflow.brand.Brand.productFullName()+" — Finance Summary Report");
             pw.println("Generated: " + LocalDateTime.now().format(TS_FMT));
             pw.println("Period: All Time");
             pw.println();

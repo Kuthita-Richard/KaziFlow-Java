@@ -61,11 +61,17 @@ public class LoginView {
 
         StackPane logoBox = new StackPane();
         logoBox.setStyle("-fx-background-color: #1e2d3d; -fx-background-radius: 8; -fx-padding: 8;");
-        Text logoIcon = new Text("▣");
-        logoIcon.setStyle("-fx-font-size: 18px; -fx-fill: white;");
-        logoBox.getChildren().add(logoIcon);
+        javafx.scene.image.ImageView markImg = com.kaziflow.brand.BrandAssets.mark(true, 38);
+        if (markImg != null) {
+            logoBox.setStyle("-fx-padding: 0;");
+            logoBox.getChildren().add(markImg);
+        } else {   // assets missing: fall back to the old glyph rather than show an empty box
+            Text logoIcon = new Text("▣");
+            logoIcon.setStyle("-fx-font-size: 18px; -fx-fill: white;");
+            logoBox.getChildren().add(logoIcon);
+        }
 
-        Label brandLabel = new Label("KaziFlow ERP");
+        Label brandLabel = new Label(com.kaziflow.brand.Brand.productFullName());
         brandLabel.getStyleClass().add("login-brand-text");
 
         brand.getChildren().addAll(logoBox, brandLabel);
@@ -220,20 +226,20 @@ public class LoginView {
         supportLink.setStyle("-fx-text-fill: #2563eb; -fx-cursor: hand; -fx-font-size: 13px;");
         supportLink.setOnMouseClicked(e -> {
             try {
-                String subject = java.net.URLEncoder.encode("KaziFlow ERP — Account Help", java.nio.charset.StandardCharsets.UTF_8);
+                String subject = java.net.URLEncoder.encode(com.kaziflow.brand.Brand.productFullName()+" — Account Help", java.nio.charset.StandardCharsets.UTF_8);
                 java.awt.Desktop.getDesktop().mail(new java.net.URI(
-                    "mailto:support@kaziflow.co.ke?subject=" + subject));
+                    "mailto:" + com.kaziflow.brand.Brand.supportEmail() + "?subject=" + subject));
             } catch (Exception ex) {
                 com.kaziflow.utils.Toast.error(
                     com.kaziflow.utils.SceneManager.getInstance().getStage(),
                     "Could not open mail client",
-                    "Please email support@kaziflow.co.ke");
+                    "Please email " + com.kaziflow.brand.Brand.supportEmail());
             }
         });
         supportRow.getChildren().addAll(supportText, supportLink);
 
         // Copyright (year computed dynamically so it never goes stale)
-        Label copyright = new Label("© " + java.time.Year.now().getValue() + " KaziFlow Systems Ltd. All rights reserved.");
+        Label copyright = new Label(com.kaziflow.brand.Brand.copyright() + "\n" + com.kaziflow.brand.Brand.lineage());
         copyright.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
 
         form.getChildren().addAll(

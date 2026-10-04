@@ -249,7 +249,7 @@ public class LicenseService {
             Files.createDirectories(Paths.get(dataDir));
             Path path = Paths.get(dataDir, LICENSE_FILE);
             try (OutputStream out = Files.newOutputStream(path)) {
-                licenseProps.store(out, "KaziFlow ERP License — do not edit manually");
+                licenseProps.store(out, com.kaziflow.brand.Brand.productFullName() + " License — do not edit manually");
             }
         } catch (IOException e) {
             System.err.println("[License] Could not save license file: " + e.getMessage());

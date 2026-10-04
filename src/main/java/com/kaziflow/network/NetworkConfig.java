@@ -22,7 +22,7 @@ public class NetworkConfig {
 
     public enum Mode { STANDALONE, SERVER, CLIENT, SHARED }
 
-    private static final String CONFIG_DIR = System.getProperty("user.home") + "/KaziFlowERP";
+    private static final String CONFIG_DIR = com.kaziflow.utils.AppPaths.dataDir();
     private static final String CONFIG_PATH = CONFIG_DIR + "/network.properties";
 
     private static NetworkConfig instance;
@@ -66,7 +66,7 @@ public class NetworkConfig {
                 p.setProperty("host", host != null ? host : "");
                 p.setProperty("port", String.valueOf(port));
                 p.setProperty("sharedDbPath", sharedDbPath != null ? sharedDbPath : "");
-                p.store(out, "KaziFlow ERP — multi-computer network configuration. Restart the app after changing this.");
+                p.store(out, com.kaziflow.brand.Brand.productFullName()+" — multi-computer network configuration. Restart the app after changing this.");
             }
         } catch (IOException e) {
             System.err.println("[NetworkConfig] Could not write " + CONFIG_PATH + ": " + e.getMessage());

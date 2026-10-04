@@ -442,8 +442,9 @@ public class DeniView {
             return;
         }
         String balance = KESFormatter.format(Double.parseDouble(row[6]));
+        String shop = com.kaziflow.utils.BusinessInfo.name("");   // the SMS speaks for the shop, not for the software vendor
         String msg = "Habari " + row[1] + ", ukumbusho wa deni: Una salio la KES " +
-            balance + ". Tafadhali lipa hivi karibuni. Asante - KaziFlow.";
+            balance + ". Tafadhali lipa hivi karibuni. Asante" + (shop.isEmpty() ? "." : " - " + shop + ".");
         AsyncTask.run(
             () -> sms.send(row[2], msg),
             result -> {
