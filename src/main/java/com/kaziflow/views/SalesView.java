@@ -382,6 +382,7 @@ public class SalesView {
             ? productDAO.findAll()
             : productDAO.search(filter);
 
+        com.kaziflow.utils.ProductImages.prefetch(products.stream().map(Product::getId).toList());
         for (Product p : products) {
             productGrid.getChildren().add(buildProductCard(p));
         }
@@ -400,6 +401,11 @@ public class SalesView {
         Label imgIcon = new Label("⊞");
         imgIcon.setStyle("-fx-font-size: 28px; -fx-text-fill: #2563eb;");
         imgPlaceholder.getChildren().add(imgIcon);
+        javafx.scene.image.ImageView photo = com.kaziflow.utils.ProductImages.thumbView(p.getId(), 80);
+        if (photo != null) {
+            imgPlaceholder.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-pref-height: 80;");
+            imgPlaceholder.getChildren().setAll(photo);
+        }
 
         String stockColor = p.isOutOfStock() ? "#dc2626" : p.isLowStock() ? "#d97706" : "#16a34a";
         Label stockBadge = new Label(String.valueOf((int) p.getStockQuantity()));

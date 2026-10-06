@@ -213,11 +213,14 @@ public class InventoryView {
                 Label sku = new Label(p.getSku() != null ? p.getSku() : "—");
                 sku.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
                 box.getChildren().addAll(n, sku);
-                setGraphic(box);
+                HBox row = new HBox(10, productAvatar(p, 38), box);
+                row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                setGraphic(row);
                 setText(null);
             }
         });
-        nameCol.setPrefWidth(200);
+        nameCol.setPrefWidth(300);   // wider: the photo/avatar takes ~48 px of the cell, so names need more room
+        nameCol.setMinWidth(220);
 
         // Category column
         TableColumn<Product, String> catCol = new TableColumn<>("CATEGORY");
@@ -336,9 +339,36 @@ public class InventoryView {
         return tv;
     }
 
+    /** The product's photo in a rounded square, or a coloured letter when it has none. */
+    private static javafx.scene.Node productAvatar(Product p, double size) {
+        javafx.scene.layout.StackPane box = new javafx.scene.layout.StackPane();
+        box.setMinSize(size, size); box.setPrefSize(size, size); box.setMaxSize(size, size);
+        javafx.scene.image.ImageView img = com.kaziflow.utils.ProductImages.thumbView(p.getId(), size);
+        if (img != null) {
+            box.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-radius: 8;");
+            javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle(size, size);
+            clip.setArcWidth(16); clip.setArcHeight(16);
+            box.setClip(clip);
+            box.getChildren().add(img);
+        } else {
+            String[] palette = {"#2563eb", "#7c3aed", "#0891b2", "#16a34a", "#d97706", "#db2777"};
+            String name = p.getName() == null || p.getName().isBlank() ? "?" : p.getName();
+            box.setStyle("-fx-background-color: " + palette[Math.floorMod(name.hashCode(), palette.length)] + "; -fx-background-radius: 8;");
+            Label l = new Label(name.substring(0, 1).toUpperCase());
+            l.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: " + (int) (size * 0.42) + "px;");
+            box.getChildren().add(l);
+        }
+        return box;
+    }
+
     private void loadData() {
         AsyncTask.run(
-            productDAO::findAll,
+            () -> {
+                var products = productDAO.findAll();
+                // one batched query for all thumbnails, so scrolling/filtering never hits the database per row
+                com.kaziflow.utils.ProductImages.prefetch(products.stream().map(Product::getId).toList());
+                return products;
+            },
             products -> productData.setAll(products),
             err -> Toast.error(SceneManager.getInstance().getStage(), "Load error", err)
         );
@@ -399,6 +429,9 @@ public class InventoryView {
         form.addRow(2, lbl("Stock Qty"), stockField, lbl("Min Stock"), minField);
         form.addRow(3, lbl("Unit"), unitField, lbl("Category"), catCombo);
         form.addRow(4, lbl("Supplier"), suppCombo);
+        ProductImagePicker picker = new ProductImagePicker(existing == null ? null : existing.getId());
+        form.add(lbl("Photo"), 0, 5);
+        form.add(picker.getNode(), 1, 5, 3, 1);
 
         pane.setContent(form);
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -422,6 +455,11 @@ public class InventoryView {
                 }
 
                 boolean ok = existing == null ? productDAO.save(p) : productDAO.update(p);
+                if (ok && picker.hasChange()) {
+                    int pid = existing != null ? existing.getId() : productDAO.findIdBySku(p.getSku());
+                    String imgErr = pid > 0 ? picker.applyTo(pid) : "The photo could not be attached.";
+                    if (imgErr != null) Toast.error(SceneManager.getInstance().getStage(), "Photo not saved", imgErr);
+                }
                 if (ok) {
                     com.kaziflow.services.AuditLog.logProductEdit(0, p.getName());
                     SceneManager.getInstance().refreshView("dashboard");

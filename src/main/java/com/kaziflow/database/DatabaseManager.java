@@ -181,6 +181,18 @@ public class DatabaseManager {
             )
         """);
 
+        // Product pictures. Separate from `products` so list queries never carry image data; stored as base64 TEXT
+        // (not BLOB) because the LAN client/server protocol cannot transport binary values. See ImageProcessor.
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS product_images (
+                product_id INTEGER PRIMARY KEY REFERENCES products(id) ON DELETE CASCADE,
+                mime       TEXT NOT NULL DEFAULT 'image/jpeg',
+                image      TEXT NOT NULL,
+                thumb      TEXT NOT NULL,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """);
+
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS stock_movements (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

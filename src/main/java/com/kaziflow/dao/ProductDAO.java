@@ -88,6 +88,16 @@ public class ProductDAO {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
+    /** Id of the product with this SKU (SKUs are unique), or -1. Needed after save(), which doesn't return the new id. */
+    public int findIdBySku(String sku) {
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement("SELECT id FROM products WHERE sku = ?")) {
+            ps.setString(1, sku);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return -1;
+    }
+
     public boolean update(Product p) {
         String sql = """
             UPDATE products SET name=?, description=?, category_id=?, supplier_id=?,
