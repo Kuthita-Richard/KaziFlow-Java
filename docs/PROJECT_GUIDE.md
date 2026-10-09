@@ -127,6 +127,10 @@ Any `PasswordField` gets a show/hide toggle via `PasswordFieldUtils.withToggle(p
 - **Customer-facing text speaks for the BUSINESS** (`BusinessInfo.name()`: debtor SMS sign-off, receipt heading), not the software vendor.
 - **Product pictures** live in `product_images` as base64 TEXT (the LAN protocol cannot carry BLOBs), two sizes (160 px square thumb, 640 px picture), written only through `ImageProcessor` (validates the file really decodes, refuses > 50 megapixels / > 20 MB *before* decoding, applies EXIF rotation, flattens transparency, re-encodes). Screens read thumbnails through `ProductImages` (LRU cache + batched `prefetch` — one query for a whole grid). Use `ProductImagePicker` for any new "photo" field. `products.image_path` is an old dead column (nothing reads or writes it).
 
+### 4.11 Product depth — read before building or "improving" any module (v11.32)
+
+`docs/design/product-depth-plan.md` defines a depth scale (D1 record → D2 operate → D3 manage → D4 optimise), measures where every module stands (`python3 tools/depth_audit.py`), sets a target per module, specifies the analytics suite page by page (with a check of which data already exists), and sequences the work (R1 trust → R2 analytics → R3 money → R4 compliance → R5 people → R6 verticals). Headline facts: the whole product has 4 charts; Reports is 192 lines; the data analytics needs mostly already exists; and §1 of that plan lists correctness/compliance problems (notably the invented "ETIMS Serial: KRA-…" printed on receipts) that come before any new feature.
+
 ### What's already dynamic vs. what's still a hardcoded default (backlog)
 - ✅ Currency, Payroll tax (all statutory rates), VAT, Delivery pricing (per-km + named overrides), which modules are active per installation
 - ❌ **Loyalty points earn-rate** — hardcoded "1 point per KES 100 spent" in `SalesView`. Same treatment as VAT/payroll would apply here; flagged, not yet built.
@@ -295,6 +299,7 @@ Worth stating explicitly so it doesn't get "fixed" unnecessarily: **one inventor
 | Positions & Access editor | `views/PositionsAccessView.java` |
 | Greying controls by permission | `utils/PermissionGuard.java` |
 | Custom (admin-built) modules: definitions / records / formulas | `custom/CustomModuleService.java`, `custom/CustomRecordService.java`, `custom/FormulaEngine.java` |
+| Product depth plan and the tool that measures it | `docs/design/product-depth-plan.md`, `tools/depth_audit.py` |
 | Brand names / assets / paths | `brand/Brand.java`, `brand/BrandAssets.java`, `resources/brand/brand.properties`, `utils/AppPaths.java`, `utils/BusinessInfo.java`, `tools/build_brand_assets.py`, `docs/brand/` |
 | Product pictures | `utils/ImageProcessor.java`, `dao/ProductImageDAO.java`, `utils/ProductImages.java`, `views/ProductImagePicker.java` |
 | HMIS reference, menu catalog (data) and its statistics | `docs/reference/HMIS_Feature_Reference.md`, `docs/reference/hmis_menu_catalog.tsv`, `tools/hmis_catalog_stats.py`, `docs/design/hmis-learnings.md` |
@@ -337,4 +342,6 @@ Every version from the original upload (v9) onward has its own dated entry in `d
 - **The AI assistant's system prompt contains the default admin login** (`admin@kaziflow.co.ke` / `admin123`) and is sent to a third party; the M-Pesa callback URL is hardcoded to `kaziflow.co.ke`; `LicenseService.SIGNING_SECRET` is hardcoded and labelled "CHANGE IN PRODUCTION" (anyone with the jar can forge licences).
 - **`installer/LICENSE.txt` (the EULA) names an individual as licensor/author**; installer publisher metadata now says Tihems Software. Which legal entity should be the licensor needs a decision before the legal text changes.
 - `support.email` / `website` in `brand.properties` still point at the old KaziFlow addresses — replace with the Tihems Software ones.
+- **Receipts print a fabricated eTIMS serial.** `ETIMSService.generateSerial` returns a locally-incremented number formatted `KRA-<year>-<seq>` (status `local`, never sent to KRA) and `ReceiptPrinter` prints it as "ETIMS Serial". It is not issued by KRA. See product-depth-plan.md §1 item 1.
+- **Reports pie chart falls back to invented slices** (Cement 40 / Steel 30 / Paints 20 / Hardware 10) when the real query is empty; the "Sales Report" export is `SELECT * … LIMIT 1000` (silently partial). See product-depth-plan.md §1.
 

@@ -22,7 +22,7 @@ def metrics(src):
     return {
         "loc": len(code.splitlines()),
         "tabs": len(re.findall(r"new Tab\(|\.getTabs\(\)\.add|new TabPane", code)) - len(re.findall(r"new TabPane", code)) if re.search(r"new Tab\(", code) else 0,
-        "charts": len(re.findall(r"new (Line|Bar|Pie|Area|Scatter|StackedBar|StackedArea)Chart", code)),
+        "charts": len(re.findall(r"new (Line|Bar|Pie|Area|Scatter|StackedBar|StackedArea)Chart\s*(?:<[^>]*>)?\s*\(", code)),  # constructors only: NOT "new PieChart.Data(...)" rows
         "tables": len(re.findall(r"new TableView", code)),
         "dialogs": len(re.findall(r"new Dialog<|new Alert\(", code)),
         "filters": len(re.findall(r"new ComboBox|new DatePicker|setPromptText\(\"[^\"]*[Ss]earch", code)),
