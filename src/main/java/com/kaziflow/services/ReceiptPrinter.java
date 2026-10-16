@@ -79,13 +79,13 @@ public class ReceiptPrinter {
         sb.append(line("Cashier:", sale.getServedByName() != null ? sale.getServedByName() : "—")).append("\n");
         sb.append(line("Customer:", sale.getCustomerName() != null ? sale.getCustomerName() : "Walk-in")).append("\n");
 
-        // ETIMS serial — fetch from DB if available
-        String etimsSerial = "PENDING";
+        // eTIMS number: printed ONLY if KRA actually received this invoice. KaziFlow does not yet transmit to KRA, so
+        // today nothing is printed — a locally generated counter must never appear on a receipt as a tax-authority
+        // number (it used to, formatted like "KRA-2026-000142"; that misrepresented the document).
         if (sale.getId() > 0) {
-            String stored = com.kaziflow.services.ETIMSService.getInstance().getSerial(sale.getId());
-            if (stored != null) etimsSerial = stored;
+            String transmitted = com.kaziflow.services.ETIMSService.getInstance().getTransmittedSerial(sale.getId());
+            if (transmitted != null) sb.append(line("eTIMS Invoice No:", transmitted)).append("\n");
         }
-        sb.append(line("ETIMS Serial:", etimsSerial)).append("\n");
 
         sb.append(divider('─')).append("\n");
 

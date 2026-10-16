@@ -462,7 +462,7 @@ public class FinanceView {
         reminder.setStyle("-fx-background-color:#eff6ff;-fx-background-radius:10;-fx-padding:16;-fx-border-color:#bfdbfe;-fx-border-radius:10;-fx-border-width:1;");
         Label ri = new Label("ℹ VAT Filing Reminder — Due 20th of each month");
         ri.setStyle("-fx-font-size:13px;-fx-font-weight:bold;-fx-text-fill:#2563eb;");
-        Label rd = new Label("File via KRA iTax portal (www.kra.go.ke/itax). Ensure all sales invoices are ETIMS-compliant. Consult your tax advisor for specific situations.");
+        Label rd = new Label("File via KRA iTax portal (www.kra.go.ke/itax). Ensure all sales invoices are eTIMS-compliant. " + com.kaziflow.brand.Brand.productName() + " does not yet transmit invoices to KRA, so keep issuing them through KRA's eTIMS system. Consult your tax advisor for specific situations.");
         rd.setStyle("-fx-text-fill:#1e40af;-fx-font-size:12px;-fx-wrap-text:true;"); rd.setWrapText(true);
         reminder.getChildren().addAll(ri, rd);
 

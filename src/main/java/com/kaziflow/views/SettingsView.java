@@ -146,7 +146,7 @@ public class SettingsView {
                 com.kaziflow.services.EmailService.getInstance().isConfigured() ? "#16a34a" : "#94a3b8", "module_email"},
             {"🖧", "Network / Multi-Computer", "Share this database with other computers on the same network.",
                 com.kaziflow.network.NetworkConfig.getInstance().getMode().name(), "#2563eb", "module_network"},
-            {"⊞", "Tax Settings",         "VAT rate, ETIMS configuration, and tax categories.", vatStatus(), "", "module_tax"},
+            {"⊞", "Tax Settings",         "VAT rate and tax categories. (Submitting invoices to KRA eTIMS is not connected yet.)", vatStatus(), "", "module_tax"},
             {"🧾", "Payroll Tax Settings", "NSSF, SHIF, Housing Levy, NITA, and PAYE bands — every rate is "
                 + "editable here since Kenyan statutory rates change often.",
                 com.kaziflow.services.PayrollTaxConfig.getInstance().getPersonalReliefMonthly() == 2400
