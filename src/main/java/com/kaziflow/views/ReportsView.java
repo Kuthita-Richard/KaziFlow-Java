@@ -155,36 +155,49 @@ public class ReportsView {
         Label pieSub = new Label("Current inventory value distribution");
         pieSub.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
 
-        // Query stock value per category from DB
+        // Stock value (at cost) per category, from the database — and only ever from the database: when there is
+        // nothing to show we say so rather than draw sample slices (an earlier version fell back to invented
+        // "Cement 40 / Steel 30 / Paints 20 / Hardware 10", which a new business would read as its own data).
         javafx.collections.ObservableList<PieChart.Data> pieData = javafx.collections.FXCollections.observableArrayList();
-        try {
-            java.sql.Connection conn = com.kaziflow.database.DatabaseManager.getInstance().getConnection();
-            java.sql.Statement st = conn.createStatement();
-            java.sql.ResultSet rs = st.executeQuery(
-                "SELECT c.name, COALESCE(SUM(p.stock_quantity * p.cost_price),0) as val " +
-                "FROM products p JOIN categories c ON p.category_id = c.id " +
-                "GROUP BY c.name HAVING val > 0 ORDER BY val DESC LIMIT 6");
+        String pieProblem = null;
+        try (java.sql.Connection conn = com.kaziflow.database.DatabaseManager.getInstance().getConnection();
+             java.sql.Statement st = conn.createStatement();
+             // LEFT JOIN so products with no category are counted (as "Uncategorised"), not silently dropped
+             java.sql.ResultSet rs = st.executeQuery(
+                "SELECT COALESCE(c.name, 'Uncategorised') AS name, COALESCE(SUM(p.stock_quantity * p.cost_price),0) AS val " +
+                "FROM products p LEFT JOIN categories c ON p.category_id = c.id " +
+                "GROUP BY COALESCE(c.name, 'Uncategorised') HAVING val > 0 ORDER BY val DESC")) {
+            double other = 0;
+            int shown = 0;
             while (rs.next()) {
                 double val = rs.getDouble("val");
-                if (val > 0) pieData.add(new PieChart.Data(rs.getString("name"), val));
+                if (shown < 5) { pieData.add(new PieChart.Data(rs.getString("name"), val)); shown++; }
+                else other += val;                       // every remaining category, instead of dropping them
             }
-        } catch (Exception ignored) {}
-        if (pieData.isEmpty()) {
-            pieData.addAll(
-                new PieChart.Data("Cement", 40),
-                new PieChart.Data("Steel", 30),
-                new PieChart.Data("Paints", 20),
-                new PieChart.Data("Hardware", 10)
-            );
+            if (other > 0) pieData.add(new PieChart.Data("Other", other));
+        } catch (Exception e) {
+            pieProblem = "Could not read stock values: " + e.getMessage();
         }
 
-        PieChart pie = new PieChart(pieData);
-        pie.setAnimated(false);
-        pie.setLegendVisible(true);
-        pie.setPrefHeight(220);
-        pie.setStyle("-fx-background-color: transparent;");
+        javafx.scene.Node pieNode;
+        if (!pieData.isEmpty()) {
+            PieChart pie = new PieChart(pieData);
+            pie.setAnimated(false);
+            pie.setLegendVisible(true);
+            pie.setPrefHeight(220);
+            pie.setStyle("-fx-background-color: transparent;");
+            pieNode = pie;
+        } else {
+            Label empty = new Label(pieProblem != null ? pieProblem
+                    : "No stock on hand yet. Add products with a cost price and stock quantity to see how your stock value is split.");
+            empty.setWrapText(true);
+            empty.setStyle("-fx-text-fill: " + (pieProblem != null ? "#dc2626" : "#94a3b8") + "; -fx-font-size: 12px;");
+            empty.setPrefHeight(220);
+            empty.setAlignment(javafx.geometry.Pos.CENTER);
+            pieNode = empty;
+        }
 
-        pieCard.getChildren().addAll(pieTitle, pieSub, pie);
+        pieCard.getChildren().addAll(pieTitle, pieSub, pieNode);
         row.getChildren().addAll(trendCard, pieCard);
         return row;
     }

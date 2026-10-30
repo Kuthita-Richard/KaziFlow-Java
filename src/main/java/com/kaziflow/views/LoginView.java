@@ -95,29 +95,15 @@ public class LoginView {
         VBox.setVgrow(bottomSpacer, Priority.ALWAYS);
 
         // Trust row
-        HBox trustRow = new HBox(8);
+        // Only true statements here. (An earlier version claimed "Trusted by 500+ businesses in Nairobi & Mombasa"
+        // beside invented customer avatars — nothing in the product supports that, so it was removed.)
+        VBox trustRow = new VBox(3);
         trustRow.setAlignment(Pos.CENTER_LEFT);
-        trustRow.setPadding(new Insets(0, 0, 0, 0));
-
-        HBox avatars = new HBox(-8);
-        String[] colors = {"#2563eb", "#16a34a", "#d97706"};
-        String[] initials = {"D", "G", "S"};
-        for (int i = 0; i < 3; i++) {
-            StackPane avatar = new StackPane();
-            Circle circle = new Circle(14);
-            circle.setFill(Color.web(colors[i]));
-            circle.setStroke(Color.web("#0d1b2a"));
-            circle.setStrokeWidth(2);
-            Label initial = new Label(initials[i]);
-            initial.setStyle("-fx-text-fill: white; -fx-font-size: 11px; -fx-font-weight: bold;");
-            avatar.getChildren().addAll(circle, initial);
-            avatars.getChildren().add(avatar);
-        }
-
-        Label trustText = new Label("Trusted by 500+ businesses in Nairobi & Mombasa");
-        trustText.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
-
-        trustRow.getChildren().addAll(avatars, trustText);
+        Label taglineLbl = new Label(com.kaziflow.brand.Brand.tagline());
+        taglineLbl.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 12px; -fx-font-weight: bold;");
+        Label lineageLbl = new Label(com.kaziflow.brand.Brand.lineage());
+        lineageLbl.setStyle("-fx-text-fill: #64748b; -fx-font-size: 11px;");
+        trustRow.getChildren().addAll(taglineLbl, lineageLbl);
 
         panel.getChildren().addAll(brand, topSpacer, headline, subtitle, bottomSpacer, trustRow);
         return panel;
@@ -196,26 +182,8 @@ public class LoginView {
         passwordField.setOnAction(e -> handleLogin());
         emailField.setOnAction(e -> com.kaziflow.utils.PasswordFieldUtils.requestFocus(passwordField));
 
-        // Divider
-        HBox dividerRow = new HBox(10);
-        dividerRow.setAlignment(Pos.CENTER);
-        Region d1 = new Region(); d1.setPrefHeight(1); d1.setStyle("-fx-background-color: #e2e8f0;");
-        HBox.setHgrow(d1, Priority.ALWAYS);
-        Label divText = new Label("OR CONTINUE WITH");
-        divText.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
-        Region d2 = new Region(); d2.setPrefHeight(1); d2.setStyle("-fx-background-color: #e2e8f0;");
-        HBox.setHgrow(d2, Priority.ALWAYS);
-        dividerRow.getChildren().addAll(d1, divText, d2);
-        dividerRow.setStyle("-fx-alignment: center;");
-
-        // Google sign in — not yet implemented (no OAuth client configured).
-        // Wired to an informative message rather than left as a dead click.
-        Button googleBtn = new Button("G   Sign in with Google");
-        googleBtn.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 8; -fx-background-radius: 8; -fx-pref-height: 44px; -fx-font-size: 14px; -fx-cursor: hand;");
-        googleBtn.setPrefWidth(380);
-        googleBtn.setOnAction(e -> com.kaziflow.utils.Toast.info(
-            com.kaziflow.utils.SceneManager.getInstance().getStage(),
-            "Google Sign-In is not yet available. Please sign in with your email and password."));
+        // (No "Sign in with Google": there is no OAuth client behind it, and a button that only apologises is worse
+        // than none. Add it back, with its divider, when Google sign-in actually exists.)
 
         // Contact support
         HBox supportRow = new HBox(4);
@@ -246,7 +214,7 @@ public class LoginView {
             title, subtitle,
             new Region() {{ setPrefHeight(8); }},
             emailBox, passBox, optionsRow, errorLabel, signInBtn,
-            dividerRow, googleBtn, supportRow
+            supportRow
         );
 
         VBox.setVgrow(form, Priority.NEVER);
