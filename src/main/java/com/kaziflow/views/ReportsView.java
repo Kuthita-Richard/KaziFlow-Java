@@ -84,10 +84,10 @@ public class ReportsView {
         double stockValue = productDAO.getTotalStockValue();
 
         row.getChildren().addAll(
-            statCard("TOTAL REVENUE", KESFormatter.formatShort(revenue > 0 ? revenue : 4200000), "+12% vs last month", "#1e293b"),
-            statCard("NET PROFIT", KESFormatter.formatShort(netProfit > 0 ? netProfit : 1800000), String.format("%.0f%% Margin", margin > 0 ? margin : 42), "#1e293b"),
-            statCard("EXPENSES", KESFormatter.formatShort(expenses > 0 ? expenses : 850000), "Operations & Payroll", "#1e293b"),
-            statCard("INVENTORY VALUE", KESFormatter.formatShort(stockValue > 0 ? stockValue : 12500000), "1,240 SKUs", "#1e293b")
+            statCard("REVENUE", KESFormatter.formatShort(revenue), com.kaziflow.utils.DateRange.monthLabel(java.time.YearMonth.now()), "#1e293b"),
+            statCard("NET PROFIT", KESFormatter.formatShort(netProfit), revenue > 0 ? String.format(java.util.Locale.ROOT, "%.0f%% of revenue", margin) : "No sales this month", "#1e293b"),
+            statCard("EXPENSES", KESFormatter.formatShort(expenses), "Recorded this month", "#1e293b"),
+            statCard("INVENTORY VALUE", KESFormatter.formatShort(stockValue), productDAO.getTotalCount() + " active products, at selling price", "#1e293b")
         );
         for (var c : row.getChildren()) HBox.setHgrow((Region)c, Priority.ALWAYS);
         return row;
@@ -152,7 +152,7 @@ public class ReportsView {
 
         Label pieTitle = new Label("Stock Value by Category");
         pieTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
-        Label pieSub = new Label("Current inventory value distribution");
+        Label pieSub = new Label("Stock on hand at cost price, by category");
         pieSub.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
 
         // Stock value (at cost) per category, from the database — and only ever from the database: when there is

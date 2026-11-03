@@ -21,7 +21,8 @@ public class ExpenseView {
     private TableView<Expense> table;
     private ObservableList<Expense> data = FXCollections.observableArrayList();
     private final ExpenseDAO expenseDAO = new ExpenseDAO();
-    private Label monthTotalLabel, totalLabel;
+    private Label monthTotalLabel, totalLabel, topCatLabel, avgLabel;
+    private VBox breakdownCard;
 
     private static final String[] CATEGORIES = {
         "Rent & Utilities", "Payroll & Salaries", "Transport & Logistics",
@@ -71,8 +72,8 @@ public class ExpenseView {
         statsRow.getChildren().addAll(
             statCard("This Month", monthTotalLabel, "Current month expenses", "#dc2626"),
             statCard("Total Expenses", totalLabel, "All time", "#1e293b"),
-            statCard("Top Category", new Label("Payroll"), "Highest spend", "#d97706"),
-            statCard("Avg per Month", new Label("—"), "Based on history", "#7c3aed")
+            statCard("Top Category", topCatLabel = new Label("—"), "Highest spend", "#d97706"),
+            statCard("Avg per Month", avgLabel = new Label("—"), "Last 12 months", "#7c3aed")
         );
         for (var c : statsRow.getChildren()) HBox.setHgrow((Region)c, Priority.ALWAYS);
 
@@ -209,30 +210,8 @@ public class ExpenseView {
         Label subtitle = new Label("This month's breakdown"); subtitle.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
         card.getChildren().addAll(title, subtitle);
 
-        String[][] cats = {
-            {"Payroll",      "320,000", "#2563eb",  "58%"},
-            {"Rent",         "85,000",  "#16a34a",  "15%"},
-            {"Transport",    "45,000",  "#d97706",  "8%"},
-            {"Utilities",    "38,500",  "#7c3aed",  "7%"},
-            {"Maintenance",  "22,000",  "#dc2626",  "4%"},
-            {"Other",        "44,500",  "#94a3b8",  "8%"}
-        };
-
-        for (String[] cat : cats) {
-            VBox row = new VBox(4);
-            row.setPadding(new Insets(4, 0, 4, 0));
-            HBox topRow = new HBox();
-            Label name = new Label(cat[0]); name.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b;");
-            Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
-            Label amount = new Label("KES " + cat[1]); amount.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
-            Label pct = new Label(cat[3]); pct.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
-            topRow.getChildren().addAll(name, sp, amount, new Label(" "), pct);
-            ProgressBar pb = new ProgressBar(Double.parseDouble(cat[3].replace("%", "")) / 100.0);
-            pb.setMaxWidth(Double.MAX_VALUE);
-            pb.setStyle("-fx-accent: " + cat[2] + "; -fx-pref-height: 6;");
-            row.getChildren().addAll(topRow, pb);
-            card.getChildren().add(row);
-        }
+        breakdownCard = card;
+        fillBreakdown(java.util.List.of());
 
         panel.getChildren().add(card);
         return panel;
@@ -248,11 +227,47 @@ public class ExpenseView {
         return card;
     }
 
+    /** Rebuilds the "By Category" rows from this month's real expenses (nothing is typed here). */
+    private void fillBreakdown(List<Expense> list) {
+        if (breakdownCard == null) return;
+        if (breakdownCard.getChildren().size() > 2) breakdownCard.getChildren().remove(2, breakdownCard.getChildren().size());
+        java.util.Map<String, Double> cats = com.kaziflow.services.ExpenseStats.monthByCategory(list, java.time.LocalDate.now(), 6);
+        double total = cats.values().stream().mapToDouble(Double::doubleValue).sum();
+        if (cats.isEmpty() || total <= 0) {
+            Label none = new Label("No expenses recorded this month");
+            none.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+            breakdownCard.getChildren().add(none);
+            return;
+        }
+        String[] palette = {"#2563eb", "#16a34a", "#d97706", "#7c3aed", "#dc2626", "#94a3b8"};
+        int i = 0;
+        for (var e : cats.entrySet()) {
+            double share = e.getValue() / total;
+            VBox row = new VBox(4);
+            row.setPadding(new Insets(4, 0, 4, 0));
+            HBox topRow = new HBox();
+            Label name = new Label(e.getKey()); name.setStyle("-fx-font-size: 13px; -fx-text-fill: #1e293b;");
+            Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
+            Label amount = new Label(KESFormatter.format(e.getValue())); amount.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #1e293b;");
+            Label pct = new Label(String.format(java.util.Locale.ROOT, "%.0f%%", share * 100)); pct.setStyle("-fx-font-size: 11px; -fx-text-fill: #94a3b8;");
+            topRow.getChildren().addAll(name, sp, amount, new Label(" "), pct);
+            ProgressBar pb = new ProgressBar(share);
+            pb.setMaxWidth(Double.MAX_VALUE);
+            pb.setStyle("-fx-accent: " + palette[i++ % palette.length] + "; -fx-pref-height: 6;");
+            row.getChildren().addAll(topRow, pb);
+            breakdownCard.getChildren().add(row);
+        }
+    }
+
     private void loadData() {
         List<Expense> expenses = expenseDAO.findAll();
         data.setAll(expenses);
         monthTotalLabel.setText(KESFormatter.format(expenseDAO.getMonthTotal()));
         totalLabel.setText(KESFormatter.formatShort(expenseDAO.getTotal()));
+        com.kaziflow.services.ExpenseStats st = com.kaziflow.services.ExpenseStats.of(expenses, java.time.LocalDate.now());
+        topCatLabel.setText(st.topCategory() == null ? "—" : st.topCategory().key() + " (" + st.topCategory().percentText() + ")");
+        avgLabel.setText(st.avgPerMonthLast12() == null ? "—" : KESFormatter.formatShort(st.avgPerMonthLast12()));
+        fillBreakdown(expenses);
     }
 
     private void showAddDialog() {

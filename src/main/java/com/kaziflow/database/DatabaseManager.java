@@ -782,8 +782,9 @@ public class DatabaseManager {
             ('TXN-010', 'Pipe & plumbing sales', 10, 'income', 'Sales Revenue', 89000, 'cash', date('now', '-2 days'), 1)
         """);
 
-        // Seed demo expenses
-        stmt.execute("""
+        // Seed demo expenses — ONCE per database (flag in settings). `expenses` has no unique key, so the old
+        // unconditional INSERT OR IGNORE added these 8 rows again on EVERY launch; a table that already holds rows is never added to.
+        if (firstTimeSeed(stmt, "demo_expenses_seeded", "expenses")) stmt.execute("""
             INSERT OR IGNORE INTO expenses (description, category, amount, payment_method, expense_date, created_by) VALUES
             ('Monthly rent - Tom Mboya Street', 'Rent', 85000, 'bank transfer', date('now', '-30 days'), 1),
             ('Staff payroll October', 'Payroll', 425000, 'bank transfer', date('now', '-20 days'), 1),
@@ -794,5 +795,14 @@ public class DatabaseManager {
             ('Nairobi Water & Sewerage', 'Utilities', 3800, 'mpesa', date('now', '-15 days'), 1),
             ('Fire extinguisher service', 'Maintenance', 8500, 'cash', date('now', '-25 days'), 1)
         """);
+    }
+
+    /** True exactly once per database for a seed key, and never when the table already has rows (existing installs). */
+    private boolean firstTimeSeed(Statement stmt, String key, String table) throws SQLException {
+        try (java.sql.ResultSet rs = stmt.executeQuery("SELECT 1 FROM settings WHERE key = '" + key + "'")) { if (rs.next()) return false; }
+        boolean empty;
+        try (java.sql.ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + table)) { empty = !rs.next() || rs.getInt(1) == 0; }
+        stmt.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('" + key + "', '1')");
+        return empty;
     }
 }

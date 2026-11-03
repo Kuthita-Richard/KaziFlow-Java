@@ -105,7 +105,7 @@ public class InventoryView {
 
         row.getChildren().addAll(
             statCard("Total Products", String.valueOf(total), "Items in stock", "#2563eb"),
-            statCard("Total Stock Value", KESFormatter.formatShort(stockValue), "+2.4% vs last month", "#16a34a"),
+            statCard("Total Stock Value", KESFormatter.formatShort(stockValue), "At selling price", "#16a34a"),
             statCard("Low Stock Alerts", lowStock + " Items", "Requires attention", "#dc2626")
         );
         for (var child : row.getChildren()) HBox.setHgrow((Region) child, Priority.ALWAYS);

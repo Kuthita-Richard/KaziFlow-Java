@@ -36,7 +36,18 @@ class TrustGuardTest {
         new String[]{"PieChart.Data(\"Cement\"", "invented sample slices drawn as if they were the user's data"},
         new String[]{"PieChart.Data(\"Steel\"", "invented sample slices drawn as if they were the user's data"},
         new String[]{"totalExpenses * 0.", "an invented percentage split of expenses presented as real accounting lines"},
-        new String[]{"getWeekRevenue()", "this-week revenue printed under a 'Total Revenue' label in an export of other rows"});
+        new String[]{"getWeekRevenue()", "this-week revenue printed under a 'Total Revenue' label in an export of other rows"},
+        // v11.35 sweep: stat cards show the real figure or "—", never a sample (guide §4.12)
+        new String[]{"1,240 SKUs", "a product count nothing computed"},
+        new String[]{"+12% vs last month", "a trend nothing computed"},
+        new String[]{"+2.4% vs last month", "a trend nothing computed"},
+        new String[]{"56% of sales", "a payment-mix share nothing computed (use TopShare)"},
+        new String[]{"42% of total", "a top-category share nothing computed (use ExpenseStats / TopShare)"},
+        new String[]{"4200000", "a sample revenue shown when the real value is 0"},
+        new String[]{"12500000", "a sample inventory value shown when the real value is 0"},
+        new String[]{"1240000", "a sample expense total shown when the real value is 0"},
+        new String[]{"103333", "a sample monthly average shown when there is no history"},
+        new String[]{"1800000", "a sample net profit shown when the real value is not positive"});
 
     @Test
     @DisplayName("no source string says something the product cannot back up")

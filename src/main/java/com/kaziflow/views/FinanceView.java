@@ -224,11 +224,12 @@ public class FinanceView {
     private VBox buildExpensesBody() {
         VBox content = new VBox(20); content.setPadding(new Insets(24));
         double total = expenseDAO.getTotal(); double monthTotal = expenseDAO.getMonthTotal();
+        com.kaziflow.services.ExpenseStats xs = com.kaziflow.services.ExpenseStats.of(expenseDAO.findAll(), java.time.LocalDate.now());
         HBox stats = statsRow(
-            statCard("Total Expenses",  KESFormatter.formatShort(total>0?total:1240000),      "All time",         "#1e293b"),
-            statCard("This Month",      KESFormatter.formatShort(monthTotal>0?monthTotal:320000),"October 2024",  "#dc2626"),
-            statCard("Avg Per Month",   KESFormatter.formatShort(total>0?total/12:103333),     "Last 12 months",  "#d97706"),
-            statCard("Top Category",    "Payroll",                                             "42% of total",    "#7c3aed")
+            statCard("Total Expenses",  KESFormatter.formatShort(total),                      "All time",         "#1e293b"),
+            statCard("This Month",      KESFormatter.formatShort(monthTotal),                 com.kaziflow.utils.DateRange.monthLabel(java.time.YearMonth.now()), "#dc2626"),
+            statCard("Avg Per Month",   xs.avgPerMonthLast12() == null ? "—" : KESFormatter.formatShort(xs.avgPerMonthLast12()), "Last 12 months", "#d97706"),
+            statCard("Top Category",    xs.topCategory() == null ? "—" : xs.topCategory().key(), xs.topCategory() == null ? "No expenses yet" : xs.topCategory().percentText() + " of total", "#7c3aed")
         );
 
         HBox filterBar = new HBox(10); filterBar.setAlignment(Pos.CENTER_LEFT);
@@ -416,7 +417,7 @@ public class FinanceView {
             statCard("Output VAT (Sales)",    KESFormatter.formatShort(vatOut), "Actual VAT charged",     "#1e293b"),
             statCard("Input VAT (Purchases)", KESFormatter.formatShort(vatIn),  "Actual VAT paid, reclaimable", "#1e293b"),
             statCard("Net VAT Payable",       KESFormatter.formatShort(net),    "Payable to KRA",   "#dc2626"),
-            statCard("VAT Rate",              "16%",                            "Standard rate",    "#2563eb")
+            statCard("VAT Rate",              com.kaziflow.services.VATConfig.getInstance().isEnabled() ? java.math.BigDecimal.valueOf(com.kaziflow.services.VATConfig.getInstance().getRatePercent()).stripTrailingZeros().toPlainString() + "%" : "Off", com.kaziflow.services.VATConfig.getInstance().isEnabled() ? "Set in Settings" : "VAT is switched off in Settings", "#2563eb")
         );
 
         // Monthly breakdown table

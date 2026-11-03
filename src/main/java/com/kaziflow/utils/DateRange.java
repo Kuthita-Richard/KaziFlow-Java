@@ -123,4 +123,9 @@ public record DateRange(LocalDate from, LocalDate to) {
         if (to != null) ps.setString(index++, to.toString());
         return index;
     }
+
+    /** "November 2026" — the label for a calendar month, so no screen types a month name. */
+    public static String monthLabel(java.time.YearMonth ym) {
+        return ym.getMonth().getDisplayName(java.time.format.TextStyle.FULL, Locale.ENGLISH) + " " + ym.getYear();
+    }
 }

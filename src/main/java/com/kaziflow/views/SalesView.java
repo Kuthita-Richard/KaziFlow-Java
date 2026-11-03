@@ -144,13 +144,14 @@ public class SalesView {
         double todayRev = saleDAO.getTodayRevenue();
         double weekRev  = saleDAO.getWeekRevenue();
         int todayCnt    = saleDAO.getTodayCount();
+        com.kaziflow.utils.TopShare topPay = com.kaziflow.utils.TopShare.of(saleDAO.getPaymentMethodBreakdown());
 
         HBox stats = new HBox(16);
         for (VBox c : new VBox[]{
             sCard("Today's Revenue",    com.kaziflow.utils.KESFormatter.formatShort(todayRev), todayCnt+" sales",  "#1e293b"),
             sCard("This Week",          com.kaziflow.utils.KESFormatter.formatShort(weekRev),  "7-day total",      "#2563eb"),
             sCard("Avg Sale Value",     todayCnt>0?com.kaziflow.utils.KESFormatter.format(todayRev/todayCnt):"—","Per transaction","#16a34a"),
-            sCard("Top Payment Method", "Cash",                                                "56% of sales",     "#7c3aed")
+            sCard("Top Payment Method", topPay == null ? "—" : payLabel(topPay.key()), topPay == null ? "No sales this month" : topPay.percentText() + " of this month's sales", "#7c3aed")
         }) { stats.getChildren().add(c); HBox.setHgrow(c, Priority.ALWAYS); }
 
         // Filter bar
@@ -1307,5 +1308,12 @@ public class SalesView {
                     "Return failed", "Could not process the return. Try again.");
             }
         });
+    }
+
+    /** Display name for a stored payment-method code ("mpesa" → "M-Pesa", "cash" → "Cash"). */
+    private static String payLabel(String code) {
+        if (code == null || code.isBlank()) return "—";
+        if (code.equalsIgnoreCase("mpesa")) return "M-Pesa";
+        return Character.toUpperCase(code.charAt(0)) + code.substring(1).toLowerCase();
     }
 }
