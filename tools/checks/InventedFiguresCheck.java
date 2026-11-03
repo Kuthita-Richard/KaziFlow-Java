@@ -100,15 +100,10 @@ public class InventedFiguresCheck {
         ModuleRegistry.getInstance().init();
         User u = new User(); u.setId(1); u.setName("Admin"); SessionManager.getInstance().login(u);
         Platform.startup(() -> {});
-        // demo-expense seeding: once per database, never added to existing data, never re-created after the owner deletes it
-        check("seed: a brand-new database gets the demo expenses once (8 rows)", scalar("SELECT COUNT(*) FROM expenses") == 8);
+        // a new database holds no demo data and a restart adds none (loading/removing it is DemoCompanyCheck's job)
+        check("seed: a brand-new database has no demo expenses", scalar("SELECT COUNT(*) FROM expenses") == 0);
         seedAgain();
-        check("seed: starting the app again does NOT add them again (was +8 on every launch)", scalar("SELECT COUNT(*) FROM expenses") == 8);
-        sql("DELETE FROM expenses"); seedAgain();
-        check("seed: after the owner deletes all expenses they are not re-created", scalar("SELECT COUNT(*) FROM expenses") == 0);
-        sql("DELETE FROM settings WHERE key='demo_expenses_seeded'");
-        sql("INSERT INTO expenses (description, category, amount, expense_date) VALUES ('mine','Rent',1,date('now'))"); seedAgain();
-        check("seed: an existing database (rows, no flag) is never added to", scalar("SELECT COUNT(*) FROM expenses") == 1);
+        check("seed: starting the app again adds none (was +8 expenses on every launch)", scalar("SELECT COUNT(*) FROM expenses") == 0);
         sql("DELETE FROM sale_items"); sql("DELETE FROM sales"); sql("DELETE FROM expenses"); sql("DELETE FROM products");
         VATConfig.getInstance().save(16.0, true);
 

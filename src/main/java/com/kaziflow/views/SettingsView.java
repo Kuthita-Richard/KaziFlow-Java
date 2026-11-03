@@ -164,6 +164,9 @@ public class SettingsView {
             {"🏪", "Industry Profile",    "Change your business type to load the right modules and layout.",  profileName,        "#7c3aed", "module_industry"},
             {"✦",  "AI Assistant",        "Configure Claude API key for AI-powered business insights.",        "Set API Key →",    "#02a870", "module_ai"},
             {"▣", "Data Management",      "Manual backups, restore points, and automated backup schedules.", "Last backup: " + com.kaziflow.services.BackupService.getInstance().getLastBackupTime(),  "", "module_backup"},
+            {"🧪", "Demo Company",         "Sample suppliers, employees, products and transactions for trying the system out. Nothing is loaded unless you ask, and it can be removed again.",
+                com.kaziflow.services.DemoDataService.isPresent() ? "Demo data loaded" : "Not loaded",
+                com.kaziflow.services.DemoDataService.isPresent() ? "#d97706" : "", "module_demo"},
             {"▤", "Audit Trail",          "View detailed system logs of all user actions and changes.",       "View Logs →",      "#2563eb","module_audit"},
             {"🌐","Language / Lugha",      "Switch between English and Kiswahili interface.",
                 com.kaziflow.utils.I18n.getInstance().isSwahili() ? "Kiswahili" : "English",
@@ -246,6 +249,9 @@ public class SettingsView {
         }
         if (title.equals("Audit Trail")) {
             card.setOnMouseClicked(e -> showAuditTrailDialog());
+        }
+        if (title.equals("Demo Company")) {
+            card.setOnMouseClicked(e -> showDemoCompanyDialog());
         }
         if (title.equals("Data Management")) {
             card.setOnMouseClicked(e -> {
@@ -841,6 +847,36 @@ public class SettingsView {
                     "Saved", enabled.size() + " module(s) enabled.");
                 com.kaziflow.utils.SceneManager.getInstance().showMainApp();
             }
+        });
+    }
+
+    /** Load or remove the optional demo company (DemoDataService). Nothing is ever loaded without this explicit choice. */
+    private void showDemoCompanyDialog() {
+        if (!com.kaziflow.utils.PermissionGuard.allowsModule("settings", com.kaziflow.services.PermissionService.Action.WRITE)) {
+            new Alert(Alert.AlertType.WARNING, "You need Write access to Settings to load or remove demo data.").showAndWait();
+            return;
+        }
+        var present = com.kaziflow.services.DemoDataService.countPresent();
+        boolean loaded = present.total() > 0;
+        String body = loaded
+            ? "Demo data is in this database: " + present.describe() + ".\n\nIt shows up in your reports and finance figures until it is removed. "
+              + "Removing deletes only these sample rows; anything a real sale, purchase or stock movement uses is kept."
+            : "This adds sample suppliers, employees, products, transactions and expenses so you can explore the system. "
+              + "They will show up in reports and finance figures until you remove them here.\n\nNothing is added unless you press Load.";
+        ButtonType load = new ButtonType("Load demo company"), remove = new ButtonType("Remove demo data");
+        Alert a = new Alert(Alert.AlertType.NONE, body, loaded ? remove : load, ButtonType.CANCEL);
+        a.setTitle("Demo Company"); a.setHeaderText(null);
+        a.showAndWait().ifPresent(btn -> {
+            String msg = null;
+            if (btn == load) {
+                msg = "Demo company loaded: " + com.kaziflow.services.DemoDataService.load().describe() + ".";
+            } else if (btn == remove) {
+                var r = com.kaziflow.services.DemoDataService.remove();
+                msg = "Removed: " + r.removed().describe() + ".";
+                if (r.keptBecauseInUse().total() > 0)
+                    msg += "\n\nKept because real records use them: " + r.keptBecauseInUse().describe() + ".";
+            }
+            if (msg != null) new Alert(Alert.AlertType.INFORMATION, msg).showAndWait();
         });
     }
 
