@@ -47,7 +47,15 @@ class TrustGuardTest {
         new String[]{"12500000", "a sample inventory value shown when the real value is 0"},
         new String[]{"1240000", "a sample expense total shown when the real value is 0"},
         new String[]{"103333", "a sample monthly average shown when there is no history"},
-        new String[]{"1800000", "a sample net profit shown when the real value is not positive"});
+        new String[]{"1800000", "a sample net profit shown when the real value is not positive"},
+        // v11.38 sweep part 2 (people and purchases)
+        new String[]{"81% rate", "an attendance rate nothing computed"},
+        new String[]{"93% active", "a supplier share nothing computed"},
+        new String[]{"Industry standard", "a payment-terms claim in place of the suppliers' real average"},
+        new String[]{"October 2024", "a month typed in code (use DateRange.monthLabel)"},
+        new String[]{"4 departments", "a department count nothing computed"},
+        new String[]{"Annual 21d", "leave policies typed in code instead of read from data"},
+        new String[]{"↑ Current period", "an up arrow shown whatever the sign of the figure"});
 
     @Test
     @DisplayName("no source string says something the product cannot back up")

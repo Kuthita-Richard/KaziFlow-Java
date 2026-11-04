@@ -132,4 +132,13 @@ public class SupplierDAO {
         s.setNotes(rs.getString("notes"));
         return s;
     }
+
+    /** Average payment terms (days) across active suppliers; null when there is none to average. */
+    public Double getAveragePaymentTerms() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT AVG(payment_terms) FROM suppliers WHERE status='active' AND payment_terms IS NOT NULL");
+            if (rs.next()) { double v = rs.getDouble(1); return rs.wasNull() ? null : v; }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
 }

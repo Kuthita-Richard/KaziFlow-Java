@@ -202,4 +202,30 @@ public class PurchaseDAO {
         } catch (Exception ignored) {}
         return p;
     }
+
+    public int getOrderCount() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM purchases");
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /** Orders created in the current calendar month. */
+    public int getMonthOrderCount() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM purchases WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now', 'localtime')");
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /** Average order value; null when there are no orders. */
+    public Double getAverageOrderValue() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT AVG(total_amount) FROM purchases");
+            if (rs.next()) { double v = rs.getDouble(1); return rs.wasNull() ? null : v; }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
 }

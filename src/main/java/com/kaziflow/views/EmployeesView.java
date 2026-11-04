@@ -83,12 +83,14 @@ public class EmployeesView {
         VBox content = new VBox(20); content.setPadding(new Insets(24));
         int total = employeeDAO.getTotalCount();
         double payroll = employeeDAO.getTotalMonthlySalary();
+        int markedToday = com.kaziflow.services.PeopleStats.attendanceMarked(java.time.LocalDate.now());
+        int checkedIn = com.kaziflow.services.PeopleStats.attendanceCount(java.time.LocalDate.now(), "present") + com.kaziflow.services.PeopleStats.attendanceCount(java.time.LocalDate.now(), "late");
 
         HBox stats = statsRow(
-            statCard("Total Employees",  String.valueOf(total),                    "4 departments",   "#1e293b"),
-            statCard("Active Today",     String.valueOf(total),                    "81% rate",        "#16a34a"),
-            statCard("Pending Actions",  "3",                                      "Leave requests",  "#d97706"),
-            statCard("Monthly Payroll",  KESFormatter.formatShort(payroll),        "October 2024",    "#7c3aed")
+            statCard("Total Employees",  String.valueOf(total),                    employeeDAO.getDepartmentsInUse() + (employeeDAO.getDepartmentsInUse() == 1 ? " department" : " departments"), "#1e293b"),
+            statCard("Checked In Today", markedToday == 0 ? "—" : String.valueOf(checkedIn), markedToday == 0 ? "No attendance recorded today" : (total > 0 ? Math.round(checkedIn * 100.0 / total) + "% of active staff" : "—"), "#16a34a"),
+            statCard("Pending Actions",  String.valueOf(com.kaziflow.services.PeopleStats.leaveCount("pending")), "Leave requests awaiting approval", "#d97706"),
+            statCard("Monthly Payroll",  KESFormatter.formatShort(payroll),        "Active staff, per month", "#7c3aed")
         );
 
         HBox filterBar = new HBox(10); filterBar.setAlignment(Pos.CENTER_LEFT);
@@ -216,10 +218,10 @@ public class EmployeesView {
 
         // Stats
         HBox stats = statsRow(
-            statCard("Present Today",   String.valueOf(employeeDAO.getTotalCount()), "All staff",         "#16a34a"),
-            statCard("Absent Today",    "0",                                         "—",                 "#dc2626"),
-            statCard("Late Arrivals",   "2",                                         "After 8:00 AM",     "#d97706"),
-            statCard("On Leave",        "1",                                         "Approved leave",    "#7c3aed")
+            statCard("Present Today",   String.valueOf(com.kaziflow.services.PeopleStats.attendanceCount(java.time.LocalDate.now(), "present")), "Checked in", "#16a34a"),
+            statCard("Absent Today",    String.valueOf(com.kaziflow.services.PeopleStats.attendanceCount(java.time.LocalDate.now(), "absent")),  "Marked absent", "#dc2626"),
+            statCard("Late Arrivals",   String.valueOf(com.kaziflow.services.PeopleStats.attendanceCount(java.time.LocalDate.now(), "late")),    "Marked late", "#d97706"),
+            statCard("On Leave",        String.valueOf(com.kaziflow.services.PeopleStats.onLeaveOn(java.time.LocalDate.now())), "Approved leave today", "#7c3aed")
         );
 
         // Date selector + filter bar
@@ -370,10 +372,10 @@ public class EmployeesView {
         VBox content = new VBox(20); content.setPadding(new Insets(24));
 
         HBox stats = statsRow(
-            statCard("Pending Requests",  "3",  "Awaiting approval", "#d97706"),
-            statCard("Approved",          "12", "This year",         "#16a34a"),
-            statCard("Rejected",          "2",  "This year",         "#dc2626"),
-            statCard("Currently on Leave","1",  "Active now",        "#7c3aed")
+            statCard("Pending Requests",  String.valueOf(com.kaziflow.services.PeopleStats.leaveCount("pending")), "Awaiting approval", "#d97706"),
+            statCard("Approved",          String.valueOf(com.kaziflow.services.PeopleStats.leaveCount("approved", java.time.Year.now().getValue())), "This year", "#16a34a"),
+            statCard("Rejected",          String.valueOf(com.kaziflow.services.PeopleStats.leaveCount("rejected", java.time.Year.now().getValue())), "This year", "#dc2626"),
+            statCard("Currently on Leave",String.valueOf(com.kaziflow.services.PeopleStats.onLeaveOn(java.time.LocalDate.now())), "Active now", "#7c3aed")
         );
 
         // Filter

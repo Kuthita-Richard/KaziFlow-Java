@@ -91,12 +91,13 @@ public class PurchasesView {
         int total = supplierDAO.getTotalCount();
         double outstanding = supplierDAO.getTotalOutstandingBalance();
         int active = supplierDAO.getActiveCount();
+        Double avgTerms = supplierDAO.getAveragePaymentTerms();
 
         HBox stats = statsRow(
             statCard("Total Suppliers",      String.valueOf(total),             "Registered vendors",    "#1e293b"),
             statCard("Outstanding Balance",  KESFormatter.formatShort(outstanding), "Owed to suppliers",  "#dc2626"),
-            statCard("Active Suppliers",     String.valueOf(active),            "93% active",            "#16a34a"),
-            statCard("Avg Payment Terms",    "30 days",                         "Industry standard",     "#7c3aed")
+            statCard("Active Suppliers",     String.valueOf(active),            total > 0 ? Math.round(active * 100.0 / total) + "% of suppliers" : "—", "#16a34a"),
+            statCard("Avg Payment Terms",    avgTerms == null ? "—" : Math.round(avgTerms) + " days", avgTerms == null ? "No active suppliers" : "Across active suppliers", "#7c3aed")
         );
 
         HBox filterBar = new HBox(10); filterBar.setAlignment(Pos.CENTER_LEFT);
@@ -265,10 +266,10 @@ public class PurchasesView {
 
         double outstanding = purchaseDAO.getTotalOutstanding();
         HBox stats = statsRow(
-            statCard("Total Orders",      "—",                                     "All time",         "#1e293b"),
+            statCard("Total Orders",      String.valueOf(purchaseDAO.getOrderCount()),   "All time",         "#1e293b"),
             statCard("Outstanding",       KESFormatter.formatShort(outstanding),   "Awaiting payment", "#dc2626"),
-            statCard("This Month",        "—",                                     "October 2024",     "#d97706"),
-            statCard("Avg Order Value",   "—",                                     "Per order",        "#7c3aed")
+            statCard("This Month",        String.valueOf(purchaseDAO.getMonthOrderCount()), com.kaziflow.utils.DateRange.monthLabel(java.time.YearMonth.now()), "#d97706"),
+            statCard("Avg Order Value",   purchaseDAO.getAverageOrderValue() == null ? "—" : KESFormatter.formatShort(purchaseDAO.getAverageOrderValue()), "Per order", "#7c3aed")
         );
 
         HBox filterBar = new HBox(10); filterBar.setAlignment(Pos.CENTER_LEFT);

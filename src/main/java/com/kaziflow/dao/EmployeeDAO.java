@@ -127,4 +127,13 @@ public class EmployeeDAO {
         try { e.setHireDate(LocalDate.parse(rs.getString("hire_date"))); } catch (Exception ignored) {}
         return e;
     }
+
+    /** Number of departments that have at least one active employee. */
+    public int getDepartmentsInUse() {
+        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
+            ResultSet rs = s.executeQuery("SELECT COUNT(DISTINCT department_id) FROM employees WHERE status='active' AND department_id IS NOT NULL");
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
 }

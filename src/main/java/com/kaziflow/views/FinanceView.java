@@ -96,7 +96,7 @@ public class FinanceView {
         HBox stats = statsRow(
             statCard("Total Revenue",  KESFormatter.formatShort(rev),      revChangeText,        "#1e293b"),
             statCard("Total Expenses", KESFormatter.formatShort(exp),      "Operating costs",    "#dc2626"),
-            statCard("Net Cash Flow",  KESFormatter.formatShort(net),      "↑ Current period",   "#16a34a"),
+            statCard("Net Cash Flow",  KESFormatter.formatShort(net),      "Revenue minus expenses", net >= 0 ? "#16a34a" : "#dc2626"),
             statCard("VAT Liability",  KESFormatter.formatShort(vatPayable), "Net payable to KRA", "#d97706")
         );
 

@@ -86,9 +86,9 @@ public class LeaveRequestView {
         int onLeave  = countActiveLeaves();
         statsRow.getChildren().addAll(
             statCard("Pending Review",  String.valueOf(pending),  "Requires attention",  "#d97706"),
-            statCard("Approved",        String.valueOf(approved), "This month",           "#16a34a"),
+            statCard("Approved",        String.valueOf(com.kaziflow.services.PeopleStats.leaveCount("approved", java.time.Year.now().getValue())), "This year", "#16a34a"),
             statCard("Currently on Leave", String.valueOf(onLeave), "Active leave today", "#2563eb"),
-            statCard("Leave Policies",  "Annual 21d", "Sick 10d • Casual 5d",            "#7c3aed")
+            statCard("Days Approved",   String.valueOf(com.kaziflow.services.PeopleStats.approvedLeaveDays(java.time.Year.now().getValue())), "Leave days, this year", "#7c3aed")
         );
         for (var c : statsRow.getChildren()) HBox.setHgrow((Region)c, Priority.ALWAYS);
 
@@ -244,10 +244,9 @@ public class LeaveRequestView {
                 r.employeeId   = rs.getInt("employee_id");
                 r.employeeName = rs.getString("emp_name");
                 r.leaveType    = rs.getString("leave_type");
-                r.days         = rs.getInt("days");
+                r.days         = rs.getInt("days_count");
                 r.reason       = rs.getString("reason");
                 r.status       = rs.getString("status");
-                r.reviewerNotes = rs.getString("reviewer_notes");
                 r.createdAt    = rs.getString("created_at");
                 try { r.startDate = LocalDate.parse(rs.getString("start_date")); } catch (Exception ignored) {}
                 try { r.endDate   = LocalDate.parse(rs.getString("end_date"));   } catch (Exception ignored) {}
@@ -341,7 +340,7 @@ public class LeaveRequestView {
                 LocalDate end   = endPicker.getValue();
                 long days = java.time.temporal.ChronoUnit.DAYS.between(start, end) + 1;
 
-                String sql = "INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, days, reason, status, requested_by) VALUES (?,?,?,?,?,?,?,?)";
+                String sql = "INSERT INTO leave_requests (employee_id, leave_type, start_date, end_date, days_count, reason, status) VALUES (?,?,?,?,?,?,?)";
                 try (Connection conn = DatabaseManager.getInstance().getConnection();
                      PreparedStatement ps = conn.prepareStatement(sql)) {
                     ps.setInt(1, empId);
@@ -351,8 +350,6 @@ public class LeaveRequestView {
                     ps.setLong(5, days);
                     ps.setString(6, reasonArea.getText().trim());
                     ps.setString(7, "pending");
-                    try { ps.setInt(8, SessionManager.getInstance().getCurrentUser().getId()); }
-                    catch (Exception ex) { ps.setInt(8, 1); }
                     ps.executeUpdate();
                     loadData();
                 } catch (Exception e) { e.printStackTrace(); }
