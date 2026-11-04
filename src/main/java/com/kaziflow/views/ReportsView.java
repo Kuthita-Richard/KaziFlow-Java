@@ -13,6 +13,10 @@ import javafx.scene.layout.*;
 public class ReportsView {
 
     private VBox root;
+    private VBox content;
+    private HBox statsRow;
+    private com.kaziflow.utils.DateRangePicker picker;
+    private com.kaziflow.services.ReportExportService exporter = new com.kaziflow.services.ReportExportService();
     private final SaleDAO saleDAO = new SaleDAO();
     private final TransactionDAO transDAO = new TransactionDAO();
     private final ProductDAO productDAO = new ProductDAO();
@@ -25,16 +29,19 @@ public class ReportsView {
         root.setStyle("-fx-background-color: #f8fafc;");
 
         HBox topbar = buildTopBar();
-        VBox content = new VBox(20);
+        content = new VBox(20);
         content.setPadding(new Insets(24));
 
-        HBox statsRow = buildStatsRow();
+        HBox periodStrip = buildPeriodStrip();
+        statsRow = buildStatsRow(picker.getRange());
         HBox chartsRow = buildChartsRow();
         VBox browseSection = buildBrowseSection();
 
-        content.getChildren().addAll(statsRow, chartsRow, browseSection);
+        content.getChildren().addAll(periodStrip, statsRow, chartsRow, browseSection);
         root.getChildren().addAll(topbar, content);
     }
+
+    private Button exportSales, exportFinance;
 
     private HBox buildTopBar() {
         HBox bar = new HBox(); bar.setAlignment(Pos.CENTER_LEFT);
@@ -48,46 +55,60 @@ public class ReportsView {
 
         Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
 
-        // Filters
-        ComboBox<String> dateRange = new ComboBox<>();
-        dateRange.getItems().addAll("Date Range: This Month", "This Week", "Last Month", "This Year", "Custom");
-        dateRange.setValue("Date Range: This Month"); dateRange.setPrefHeight(34);
+        // The period lives in the strip under this bar (DateRangePicker); the exports below use it.
+        // (There used to be a branch box and a date box here that filtered nothing, an "Export PDF" button that wrote a CSV,
+        // and a "Schedule Report" button for a feature that does not exist. Sales/expenses/purchases/products do not record
+        // a branch, so a branch filter cannot be real until they do.)
+        exportSales = new Button("⬇ Sales CSV");
+        exportSales.setOnAction(e -> { if (picker.isValid()) exporter.exportCSV(com.kaziflow.services.ReportExportService.ReportType.SALES, picker.getRange()); });
+        exportFinance = new Button("⬇ Finance summary CSV");
+        exportFinance.setOnAction(e -> { if (picker.isValid()) exporter.exportCSV(com.kaziflow.services.ReportExportService.ReportType.FINANCE_SUMMARY, picker.getRange()); });
+        for (Button b : new Button[]{exportSales, exportFinance})
+            b.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 34px; -fx-padding: 0 12;");
 
-        ComboBox<String> branch = new ComboBox<>();
-        branch.getItems().addAll("Branch: Nairobi HQ", "All Branches");
-        branch.setValue("Branch: Nairobi HQ"); branch.setPrefHeight(34);
-
-        Button exportPdf = new Button("⬇ Export PDF");
-        exportPdf.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 34px; -fx-padding: 0 12; -fx-cursor: hand; -fx-font-size: 13px;");
-        // PDF export uses Finance Summary (most comprehensive) as default; individual report cards trigger specific types
-        exportPdf.setOnAction(e -> new com.kaziflow.services.ReportExportService().exportCSV(com.kaziflow.services.ReportExportService.ReportType.FINANCE_SUMMARY));
-
-        Button exportExcel = new Button("⬇ Export CSV");
-        exportExcel.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-pref-height: 34px; -fx-padding: 0 12; -fx-cursor: hand; -fx-font-size: 13px;");
-        exportExcel.setOnAction(e -> new com.kaziflow.services.ReportExportService().exportCSV(com.kaziflow.services.ReportExportService.ReportType.SALES));
-
-        Button scheduleBtn = new Button("+ Schedule Report");
-        scheduleBtn.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8; -fx-pref-height: 34px; -fx-padding: 0 16; -fx-cursor: hand; -fx-font-size: 13px;");
-        scheduleBtn.setOnAction(e -> com.kaziflow.utils.Toast.info(com.kaziflow.utils.SceneManager.getInstance().getStage(), "Scheduled reports coming in a future update. Use Export buttons to download reports manually."));
-
-        bar.getChildren().addAll(titleBox, sp, dateRange, branch, exportPdf, exportExcel, scheduleBtn);
+        bar.getChildren().addAll(titleBox, sp, exportSales, exportFinance);
         bar.setSpacing(10);
         return bar;
     }
 
-    private HBox buildStatsRow() {
+    /** "Period" strip: the shared DateRangePicker; the KPI cards below follow it, and so do the two export buttons. */
+    private HBox buildPeriodStrip() {
+        picker = new com.kaziflow.utils.DateRangePicker();
+        HBox strip = new HBox(16); strip.setAlignment(Pos.TOP_LEFT);
+        strip.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-padding: 14 20;");
+        Label lbl = new Label("PERIOD"); lbl.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px; -fx-font-weight: bold;"); lbl.setPadding(new Insets(8, 0, 0, 0)); lbl.setMinWidth(Region.USE_PREF_SIZE);
+        picker.setPrefWidth(340);
+        Label note = new Label("Revenue and expenses follow the period. Inventory value and the stock chart are as of today; the trend chart is always the last 6 months.");
+        note.setWrapText(true); note.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;"); note.setPadding(new Insets(8, 0, 0, 0));
+        HBox.setHgrow(note, Priority.ALWAYS);
+        strip.getChildren().addAll(lbl, picker, note);
+        picker.rangeProperty().addListener((o, a, r) -> {
+            exportSales.setDisable(r == null); exportFinance.setDisable(r == null);
+            if (r != null && statsRow != null) { statsRow = buildStatsRow(r); content.getChildren().set(1, statsRow); }   // invalid choice: keep the last cards
+        });
+        exportSales.setDisable(!picker.isValid()); exportFinance.setDisable(!picker.isValid());
+        return strip;
+    }
+
+    private HBox buildStatsRow(com.kaziflow.utils.DateRange range) {
         HBox row = new HBox(16);
-        double revenue = transDAO.getMonthRevenue();
-        double expenses = transDAO.getMonthExpenses();
+        double revenue = transDAO.getRevenue(range);
+        double expenses = transDAO.getExpenses(range);
         double netProfit = revenue - expenses;
         double margin = revenue > 0 ? (netProfit / revenue * 100) : 0;
         double stockValue = productDAO.getTotalStockValue();
+        // vs the period before (a calendar month vs the month before, otherwise the same number of days) — only when there is something to compare
+        com.kaziflow.utils.DateRange prev = range.previousPeriod();
+        double prevRevenue = prev.isAll() ? 0 : transDAO.getRevenue(prev);
+        String revenueNote = prevRevenue > 0
+            ? String.format(java.util.Locale.ROOT, "%+.0f%% vs previous period", (revenue - prevRevenue) / prevRevenue * 100)
+            : range.label();
 
         row.getChildren().addAll(
-            statCard("REVENUE", KESFormatter.formatShort(revenue), com.kaziflow.utils.DateRange.monthLabel(java.time.YearMonth.now()), "#1e293b"),
-            statCard("NET PROFIT", KESFormatter.formatShort(netProfit), revenue > 0 ? String.format(java.util.Locale.ROOT, "%.0f%% of revenue", margin) : "No sales this month", "#1e293b"),
-            statCard("EXPENSES", KESFormatter.formatShort(expenses), "Recorded this month", "#1e293b"),
-            statCard("INVENTORY VALUE", KESFormatter.formatShort(stockValue), productDAO.getTotalCount() + " active products, at selling price", "#1e293b")
+            statCard("REVENUE", KESFormatter.formatShort(revenue), revenueNote, "#1e293b"),
+            statCard("NET PROFIT", KESFormatter.formatShort(netProfit), revenue > 0 ? String.format(java.util.Locale.ROOT, "%.0f%% of revenue", margin) : "No sales in this period", "#1e293b"),
+            statCard("EXPENSES", KESFormatter.formatShort(expenses), "Recorded in this period", "#1e293b"),
+            statCard("INVENTORY VALUE", KESFormatter.formatShort(stockValue), productDAO.getTotalCount() + " active products, at selling price, as of today", "#1e293b")
         );
         for (var c : row.getChildren()) HBox.setHgrow((Region)c, Priority.ALWAYS);
         return row;
@@ -116,31 +137,28 @@ public class ReportsView {
         Label trendSub = new Label("Monthly totals from sales and expense records");
         trendSub.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
 
-        NumberAxis xAxis = new NumberAxis(1, 6, 1);
+        CategoryAxis xAxis = new CategoryAxis();
         NumberAxis yAxis = new NumberAxis();
         yAxis.setTickLabelFormatter(new javafx.util.StringConverter<Number>() {
             @Override public String toString(Number n) { return KESFormatter.formatShort(n.doubleValue()); }
             @Override public Number fromString(String s) { return 0; }
         });
-        LineChart<Number,Number> trendChart = new LineChart<>(xAxis, yAxis);
+        LineChart<String,Number> trendChart = new LineChart<>(xAxis, yAxis);
         trendChart.setAnimated(false);
         trendChart.setLegendVisible(true);
         trendChart.setPrefHeight(220);
         trendChart.setStyle("-fx-background-color: transparent;");
 
-        XYChart.Series<Number,Number> revSeries = new XYChart.Series<>();
+        XYChart.Series<String,Number> revSeries = new XYChart.Series<>();
         revSeries.setName("Revenue");
-        java.util.LinkedHashMap<String,Double> revMap = transDAO.getMonthlyRevenueBreakdown();
-        java.util.List<Double> revList = new java.util.ArrayList<>(revMap.values());
-        while (revList.size() < 6) revList.add(0, 0.0);
-        for (int i = 0; i < 6; i++) revSeries.getData().add(new XYChart.Data<>(i+1, revList.get(revList.size()-6+i)));
-
-        XYChart.Series<Number,Number> expSeries = new XYChart.Series<>();
+        XYChart.Series<String,Number> expSeries = new XYChart.Series<>();
         expSeries.setName("Expenses");
-        java.util.LinkedHashMap<String,Double> expMap = transDAO.getMonthlyExpenseBreakdown();
-        java.util.List<Double> expList = new java.util.ArrayList<>(expMap.values());
-        while (expList.size() < 6) expList.add(0, 0.0);
-        for (int i = 0; i < 6; i++) expSeries.getData().add(new XYChart.Data<>(i+1, expList.get(expList.size()-6+i)));
+        // one query, one set of month keys: the last 6 calendar months, each month's revenue and expenses together
+        for (var e : transDAO.getMonthlyTotals(6, java.time.LocalDate.now()).entrySet()) {
+            String m = e.getKey().getMonth().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH) + " " + String.format("%02d", e.getKey().getYear() % 100);
+            revSeries.getData().add(new XYChart.Data<>(m, e.getValue()[0]));
+            expSeries.getData().add(new XYChart.Data<>(m, e.getValue()[1]));
+        }
 
         trendChart.getData().addAll(revSeries, expSeries);
         trendCard.getChildren().addAll(trendTitle, trendSub, trendChart);

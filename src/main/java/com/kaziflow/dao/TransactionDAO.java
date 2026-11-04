@@ -229,4 +229,53 @@ public class TransactionDAO {
         } catch (SQLException e) { e.printStackTrace(); }
         return map;
     }
+
+    /** Completed-sales revenue (VAT inclusive) inside the period; {@link com.kaziflow.utils.DateRange#ALL} = all time. */
+    public double getRevenue(com.kaziflow.utils.DateRange r) {
+        String sql = "SELECT COALESCE(SUM(total_amount),0) FROM sales WHERE status='completed'" + r.whereClause("created_at");
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            r.bind(ps, 1);
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return rs.getDouble(1); }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /** Recorded expenses inside the period. */
+    public double getExpenses(com.kaziflow.utils.DateRange r) {
+        String sql = "SELECT COALESCE(SUM(amount),0) FROM expenses WHERE 1=1" + r.whereClause("expense_date");
+        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            r.bind(ps, 1);
+            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return rs.getDouble(1); }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    /**
+     * Revenue and expenses for each of the last {@code months} calendar months ending with {@code today}'s month, oldest
+     * first, zero-filled — {revenue, expenses} per month. Both series come from the same month keys, so they can never be
+     * paired with the wrong month, and it is always the LATEST months (not the oldest that happen to have data).
+     */
+    public java.util.LinkedHashMap<java.time.YearMonth, double[]> getMonthlyTotals(int months, java.time.LocalDate today) {
+        java.util.LinkedHashMap<java.time.YearMonth, double[]> out = new java.util.LinkedHashMap<>();
+        java.time.YearMonth last = java.time.YearMonth.from(today);
+        for (int i = months - 1; i >= 0; i--) out.put(last.minusMonths(i), new double[2]);
+        String since = last.minusMonths(months - 1).atDay(1).toString();
+        String[][] q = {
+            {"SELECT strftime('%Y-%m', created_at), COALESCE(SUM(total_amount),0) FROM sales WHERE status='completed' AND date(created_at) >= ? GROUP BY 1"},
+            {"SELECT strftime('%Y-%m', expense_date), COALESCE(SUM(amount),0) FROM expenses WHERE date(expense_date) >= ? GROUP BY 1"}};
+        try (Connection conn = getConn()) {
+            for (int k = 0; k < 2; k++) {
+                try (PreparedStatement ps = conn.prepareStatement(q[k][0])) {
+                    ps.setString(1, since);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            double[] cell = out.get(java.time.YearMonth.parse(rs.getString(1)));
+                            if (cell != null) cell[k] = rs.getDouble(2);
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return out;
+    }
 }

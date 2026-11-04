@@ -117,12 +117,12 @@ public class InventedFiguresCheck {
             check("empty DB, " + e.getKey() + ": no invented figure" + (bad == null ? "" : " (found '" + bad + "')"), bad == null);
         }
         String month = DateRange.monthLabel(YearMonth.now());
-        check("empty DB, reports: revenue card is labelled with the real current month", empty.get("reports").contains(month));
+        check("empty DB, reports: the revenue card is labelled with the real dates of its period (this month)", empty.get("reports").contains(DateRange.of(DateRange.Preset.THIS_MONTH, java.time.LocalDate.now()).label()));
         check("empty DB, finance expenses: 'This Month' is labelled with the real current month", empty.get("finance-expenses").contains(month));
         check("empty DB, finance expenses: Top Category is '—' with an honest note", empty.get("finance-expenses").contains("No expenses yet") && !empty.get("finance-expenses").contains("Payroll"));
         check("empty DB, expenses screen: no made-up category names, and the breakdown says so", !empty.get("expenses").contains("Payroll") && empty.get("expenses").contains("No expenses recorded this month"));
         check("empty DB, sales: top payment method says there are no sales", empty.get("sales").contains("No sales this month"));
-        check("empty DB, reports: net profit says there are no sales instead of a margin", empty.get("reports").contains("No sales this month"));
+        check("empty DB, reports: net profit says there are no sales instead of a margin", empty.get("reports").contains("No sales in this period"));
 
         // seeded
         sql("INSERT INTO expenses (description, category, amount, expense_date) VALUES ('r','Rent',600,date('now'))");
