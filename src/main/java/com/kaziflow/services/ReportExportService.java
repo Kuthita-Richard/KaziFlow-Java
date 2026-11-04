@@ -36,7 +36,30 @@ public class ReportExportService {
     /**
      * Shows a file chooser and exports the chosen report type as CSV.
      */
-    public void exportCSV(ReportType type) { exportCSV(type, com.kaziflow.utils.DateRange.ALL); }
+    public void exportCSV(ReportType type) {
+        if (isPeriodBased(type)) {
+            java.util.Optional<com.kaziflow.utils.DateRange> chosen = askPeriod(type);
+            if (chosen.isEmpty()) return;                       // cancelled: nothing is exported
+            exportCSV(type, chosen.get());
+        } else {
+            exportCSV(type, com.kaziflow.utils.DateRange.ALL);
+        }
+    }
+
+    /** Asks which period to export. Overridable so the flow can be tested without a screen. */
+    protected java.util.Optional<com.kaziflow.utils.DateRange> askPeriod(ReportType type) {
+        String name = type.name().charAt(0) + type.name().substring(1).toLowerCase().replace('_', ' ');
+        return com.kaziflow.utils.DateRangeDialog.ask(null, name);
+    }
+
+    /** Asks where to save. Overridable for tests; null = cancelled. */
+    protected File chooseFile(String initialFileName) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Export Report as CSV");
+        chooser.setInitialFileName(initialFileName);
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        return chooser.showSaveDialog(null);
+    }
 
     /** Reports whose rows belong to a date, so a period (this month, last quarter…) is meaningful. */
     public static boolean isPeriodBased(ReportType type) {
@@ -44,12 +67,7 @@ public class ReportExportService {
     }
 
     public void exportCSV(ReportType type, com.kaziflow.utils.DateRange range) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Export Report as CSV");
-        chooser.setInitialFileName(getDefaultFilename(type, "csv", range));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
-
-        File file = chooser.showSaveDialog(null);
+        File file = chooseFile(getDefaultFilename(type, "csv", range));
         if (file != null) {
             new Thread(() -> {
                 try {
