@@ -219,6 +219,23 @@ public class DatabaseManager {
             )
         """);
 
+        // Payment methods are master data (Settings → Payment Methods), not a CHECK list. Rows are never deleted — a method that is
+        // retired is deactivated, because sales/purchases/expenses keep referring to its code.
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS payment_methods (
+                code TEXT PRIMARY KEY,
+                label TEXT NOT NULL,
+                kind TEXT NOT NULL CHECK(kind IN ('cash','mobile_money','card','bank','credit','cheque','other')),
+                integration TEXT,
+                active INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 100,
+                for_sales INTEGER NOT NULL DEFAULT 0,
+                for_purchases INTEGER NOT NULL DEFAULT 0,
+                for_expenses INTEGER NOT NULL DEFAULT 0,
+                is_system INTEGER NOT NULL DEFAULT 0
+            )
+        """);
+
         stmt.execute("""
             CREATE TABLE IF NOT EXISTS sales (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -231,7 +248,7 @@ public class DatabaseManager {
                 total_amount REAL NOT NULL DEFAULT 0,
                 amount_paid REAL DEFAULT 0,
                 change_amount REAL DEFAULT 0,
-                payment_method TEXT DEFAULT 'cash' CHECK(payment_method IN ('cash','mpesa','card','bank')),
+                payment_method TEXT DEFAULT 'cash' REFERENCES payment_methods(code),
                 mpesa_ref TEXT,
                 status TEXT DEFAULT 'completed' CHECK(status IN ('completed','refunded','pending')),
                 served_by INTEGER REFERENCES users(id),
@@ -724,6 +741,18 @@ public class DatabaseManager {
             ('backup_frequency', 'daily'),
             ('expiry_alert_days', '30'),
             ('batch_enabled', 'false')
+        """);
+
+        // Payment methods: the defaults every company starts with (a company can rename, add or deactivate them). INSERT OR IGNORE: never
+        // overwrites what the owner changed. 'cash' is the system method (the default for sales and refunds) and cannot be deactivated.
+        stmt.execute("""
+            INSERT OR IGNORE INTO payment_methods (code, label, kind, integration, active, sort_order, for_sales, for_purchases, for_expenses, is_system) VALUES
+            ('cash',   'Cash',          'cash',         NULL,    1, 10, 1, 1, 1, 1),
+            ('mpesa',  'M-Pesa',        'mobile_money', 'mpesa', 1, 20, 1, 1, 1, 0),
+            ('card',   'Card',          'card',         NULL,    1, 30, 1, 0, 1, 0),
+            ('bank',   'Bank transfer', 'bank',         NULL,    1, 40, 1, 1, 1, 0),
+            ('cheque', 'Cheque',        'cheque',       NULL,    1, 50, 0, 1, 1, 0),
+            ('credit', 'Credit (pay later)', 'credit',  NULL,    1, 60, 0, 1, 0, 0)
         """);
 
         // Demo data (suppliers, employees, products, transactions, expenses) is deliberately NOT seeded here: a customer's

@@ -31,5 +31,6 @@ public final class SchemaMigrations {
         new CustomerDAO().ensureLoyaltyColumn();
         com.kaziflow.services.AuditLog.ensureHashColumns();
         com.kaziflow.services.NumberSequence.ensureTable();
+        PaymentMethodMigration.run();       // last: sales has all its columns by now; rebuilds it without the payment_method CHECK
     }
 }
