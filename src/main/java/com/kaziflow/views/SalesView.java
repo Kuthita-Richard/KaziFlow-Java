@@ -161,11 +161,10 @@ public class SalesView {
             if(v.isBlank()) salesHistoryData.setAll(saleDAO.findAll());
             else salesHistoryData.setAll(saleDAO.findAll().stream().filter(s->(s.getSaleNumber()!=null&&s.getSaleNumber().contains(v))||(s.getCustomerName()!=null&&s.getCustomerName().toLowerCase().contains(v.toLowerCase()))).toList());
         });
-        ComboBox<String> pmtFilter = new ComboBox<>();
-        pmtFilter.getItems().addAll("All Payment Methods","cash","mpesa","card","bank"); pmtFilter.setValue("All Payment Methods"); pmtFilter.setPrefHeight(36);
+        ComboBox<String> pmtFilter = com.kaziflow.utils.PaymentMethodCombo.filter("All Payment Methods"); pmtFilter.setPrefHeight(36);
         pmtFilter.setOnAction(e->{
             String sel=pmtFilter.getValue();
-            if("All Payment Methods".equals(sel)) salesHistoryData.setAll(saleDAO.findAll());
+            if(com.kaziflow.utils.PaymentMethodCombo.ALL.equals(sel)) salesHistoryData.setAll(saleDAO.findAll());
             else salesHistoryData.setAll(saleDAO.findAll().stream().filter(s->sel.equals(s.getPaymentMethod())).toList());
         });
         filterBar.getChildren().addAll(search, pmtFilter);
@@ -587,22 +586,22 @@ public class SalesView {
         HBox paymentRow = new HBox(8);
         paymentRow.setPadding(new Insets(12, 0, 8, 0));
 
-        String[] payMethods = {"Cash", "M-Pesa", "Card", "Bank"};
+        java.util.List<com.kaziflow.services.PaymentMethods.Method> payMethods = com.kaziflow.services.PaymentMethods.list(com.kaziflow.services.PaymentMethods.Scope.SALES, true);   // master data: Settings → Payment Methods
         ToggleGroup payGroup = new ToggleGroup();
-        for (String m : payMethods) {
-            ToggleButton tb = new ToggleButton(m);
+        for (com.kaziflow.services.PaymentMethods.Method m : payMethods) {
+            ToggleButton tb = new ToggleButton(m.label());
             tb.setToggleGroup(payGroup);
             tb.setStyle("-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 12px; -fx-pref-height: 32px; -fx-cursor: hand;");
             HBox.setHgrow(tb, Priority.ALWAYS);
-            if (m.equals("Cash")) {
+            if (m.code().equals("cash")) {
                 tb.setSelected(true);
                 tb.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-border-color: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 12px; -fx-pref-height: 32px; -fx-cursor: hand;");
             }
             tb.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
                 if (isSelected) {
                     tb.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-border-color: #2563eb; -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-size: 12px; -fx-pref-height: 32px; -fx-cursor: hand;");
-                    selectedPayment = m.toLowerCase();
-                    boolean isCash = "cash".equals(selectedPayment);
+                    selectedPayment = m.code();            // was m.toLowerCase(): "M-Pesa" became "m-pesa", so the STK push never ran and the sale broke the CHECK
+                    boolean isCash = m.kind() == com.kaziflow.services.PaymentMethods.Kind.CASH;
                     cashTenderedRow.setVisible(isCash);
                     cashTenderedRow.setManaged(isCash);
                     if (isCash) { cashTenderedField.setText(""); updateChangeDue(); }
@@ -777,7 +776,7 @@ public class SalesView {
         // entered on the numpad, not just assumed to equal the total.
         double amountPaid = total;
         double changeDue = 0.0;
-        if ("cash".equals(selectedPayment)) {
+        if (com.kaziflow.services.PaymentMethods.isCash(selectedPayment)) {
             double tendered = parseTendered();
             if (tendered < total) {
                 showAlert("Insufficient Amount", "Cash tendered (KES " + KESFormatter.formatNumber(tendered)
@@ -807,13 +806,14 @@ public class SalesView {
         sale.setServedBy(userId);
         sale.setItems(new ArrayList<>(cartItems));
 
-        if ("mpesa".equals(selectedPayment)) {
-            // Prompt for customer phone number
-            javafx.scene.control.TextInputDialog phoneDialog = new javafx.scene.control.TextInputDialog("0712345678");
+        if (com.kaziflow.services.PaymentMethods.isMpesa(selectedPayment)) {
+            // Prompt for customer phone number (no pre-filled sample number: an STK push goes to a real person)
+            javafx.scene.control.TextInputDialog phoneDialog = new javafx.scene.control.TextInputDialog("");
             phoneDialog.setTitle("M-Pesa Payment");
             phoneDialog.setHeaderText("Enter customer's M-Pesa phone number");
             phoneDialog.setContentText("Phone:");
             phoneDialog.showAndWait().ifPresent(phone -> {
+                if (phone == null || phone.isBlank()) { showAlert("Phone number needed", "Enter the customer's M-Pesa phone number."); return; }
                 com.kaziflow.services.MpesaService mpesa = com.kaziflow.services.MpesaService.getInstance();
                 if (!mpesa.isConfigured()) {
                     showAlert("M-Pesa Not Configured", "Go to Settings → M-Pesa Integration to configure your Daraja API credentials.");
@@ -1316,8 +1316,6 @@ public class SalesView {
 
     /** Display name for a stored payment-method code ("mpesa" → "M-Pesa", "cash" → "Cash"). */
     private static String payLabel(String code) {
-        if (code == null || code.isBlank()) return "—";
-        if (code.equalsIgnoreCase("mpesa")) return "M-Pesa";
-        return Character.toUpperCase(code.charAt(0)) + code.substring(1).toLowerCase();
+        return (code == null || code.isBlank()) ? "—" : com.kaziflow.services.PaymentMethods.label(code);
     }
 }

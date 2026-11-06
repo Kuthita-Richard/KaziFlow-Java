@@ -65,7 +65,12 @@ class TrustGuardTest {
         new String[]{"QT-%04d", "a COUNT-based quotation number (use NumberSequence)"},
         new String[]{"RET-%04d", "a COUNT-based return number (use NumberSequence)"},
         new String[]{"TRF-%04d", "a COUNT-based transfer number (use NumberSequence)"},
-        new String[]{"EMP-%03d", "a COUNT-based employee number (use NumberSequence)"});
+        new String[]{"EMP-%03d", "a COUNT-based employee number (use NumberSequence)"},
+        // v11.43: payment methods are master data (PaymentMethods / PaymentMethodCombo), never typed lists
+        new String[]{"\"Cash\", \"M-Pesa\", \"Card\", \"Bank\"", "a typed list of the till's payment methods (use PaymentMethods.list)"},
+        new String[]{"\"Cash\", \"M-Pesa\", \"Bank Transfer\", \"Cheque\"", "a typed list of expense payment methods (use PaymentMethodCombo)"},
+        new String[]{"\"cash\",\"mpesa\",\"bank transfer\"", "a typed list of purchase/finance payment methods (use PaymentMethodCombo)"},
+        new String[]{"\"cash\",\"mpesa\",\"card\",\"bank\"", "a typed list of payment-method codes (use PaymentMethods / PaymentMethodCombo)"});
 
     @Test
     @DisplayName("no source string says something the product cannot back up")

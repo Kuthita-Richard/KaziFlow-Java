@@ -341,9 +341,7 @@ public class FinanceView {
         catCombo.getItems().addAll("Payroll","Rent","Utilities","Supplies","Transport","Maintenance","Marketing","Office Expenses","Insurance","Other");
         catCombo.setValue("Other"); catCombo.setPrefWidth(200);
 
-        ComboBox<String> pmtCombo = new ComboBox<>();
-        pmtCombo.getItems().addAll("cash","mpesa","bank transfer","cheque","card");
-        pmtCombo.setValue("cash"); pmtCombo.setPrefWidth(200);
+        ComboBox<String> pmtCombo = com.kaziflow.utils.PaymentMethodCombo.create(com.kaziflow.services.PaymentMethods.Scope.EXPENSES, "cash"); pmtCombo.setPrefWidth(200);
 
         DatePicker datePicker = new DatePicker(LocalDate.now()); datePicker.setPrefWidth(200);
 

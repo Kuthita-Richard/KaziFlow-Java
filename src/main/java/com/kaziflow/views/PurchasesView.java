@@ -417,8 +417,7 @@ public class PurchasesView {
 
         DatePicker poDate = new DatePicker(LocalDate.now()); poDate.setPrefWidth(160);
 
-        ComboBox<String> pmtCombo = new ComboBox<>();
-        pmtCombo.getItems().addAll("cash","mpesa","bank transfer","cheque","credit"); pmtCombo.setValue("credit"); pmtCombo.setPrefWidth(130);
+        ComboBox<String> pmtCombo = com.kaziflow.utils.PaymentMethodCombo.create(com.kaziflow.services.PaymentMethods.Scope.PURCHASES, "credit"); pmtCombo.setPrefWidth(150);
 
         headerRow.getChildren().addAll(lbl("Supplier:"), supplierCombo, lbl("Date:"), poDate, lbl("Payment:"), pmtCombo);
 

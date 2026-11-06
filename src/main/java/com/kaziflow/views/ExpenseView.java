@@ -310,9 +310,7 @@ public class ExpenseView {
 
         VBox payBox = new VBox(6);
         payBox.getChildren().add(lbl("Payment Method"));
-        ComboBox<String> payCombo = new ComboBox<>();
-        payCombo.getItems().addAll("Cash", "M-Pesa", "Bank Transfer", "Cheque");
-        payCombo.setValue("Cash"); payCombo.setPrefWidth(180); payCombo.setPrefHeight(36);
+        ComboBox<String> payCombo = com.kaziflow.utils.PaymentMethodCombo.create(com.kaziflow.services.PaymentMethods.Scope.EXPENSES, "cash"); payCombo.setPrefWidth(180); payCombo.setPrefHeight(36);
         payBox.getChildren().add(payCombo);
         HBox.setHgrow(payBox, Priority.ALWAYS);
 
@@ -362,7 +360,7 @@ public class ExpenseView {
                 exp.setDescription(descField.getText().trim());
                 exp.setCategory(catCombo.getValue());
                 exp.setAmount(Double.parseDouble(amtField.getText().trim()));
-                exp.setPaymentMethod(payCombo.getValue().toLowerCase());
+                exp.setPaymentMethod(payCombo.getValue());
                 exp.setReceiptNumber(rcptField.getText().trim());
                 exp.setNotes(notesArea.getText().trim());
                 exp.setExpenseDate(datePicker.getValue());

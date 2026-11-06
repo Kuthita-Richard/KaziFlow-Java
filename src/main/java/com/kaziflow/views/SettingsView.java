@@ -164,6 +164,8 @@ public class SettingsView {
             {"🏪", "Industry Profile",    "Change your business type to load the right modules and layout.",  profileName,        "#7c3aed", "module_industry"},
             {"✦",  "AI Assistant",        "Configure Claude API key for AI-powered business insights.",        "Set API Key →",    "#02a870", "module_ai"},
             {"▣", "Data Management",      "Manual backups, restore points, and automated backup schedules.", "Last backup: " + com.kaziflow.services.BackupService.getInstance().getLastBackupTime(),  "", "module_backup"},
+            {"💳", "Payment Methods",      "The ways customers pay and you pay: names, what each is used for, and which are switched on. Add Airtel Money, a SACCO account, anything you accept.",
+                "Manage →", "#16a34a", "module_pay"},
             {"🧪", "Demo Company",         "Sample suppliers, employees, products and transactions for trying the system out. Nothing is loaded unless you ask, and it can be removed again.",
                 com.kaziflow.services.DemoDataService.isPresent() ? "Demo data loaded" : "Not loaded",
                 com.kaziflow.services.DemoDataService.isPresent() ? "#d97706" : "", "module_demo"},
@@ -252,6 +254,9 @@ public class SettingsView {
         }
         if (title.equals("Demo Company")) {
             card.setOnMouseClicked(e -> showDemoCompanyDialog());
+        }
+        if (title.equals("Payment Methods")) {
+            card.setOnMouseClicked(e -> buildPaymentMethodsDialog().showAndWait());
         }
         if (title.equals("Data Management")) {
             card.setOnMouseClicked(e -> {
@@ -848,6 +853,76 @@ public class SettingsView {
                 com.kaziflow.utils.SceneManager.getInstance().showMainApp();
             }
         });
+    }
+
+    /** Payment methods (master data): list, add, edit, switch on/off. Built without being shown so it can be tested. */
+    javafx.scene.control.Dialog<Void> buildPaymentMethodsDialog() {
+        javafx.scene.control.Dialog<Void> d = new javafx.scene.control.Dialog<>();
+        d.setTitle("Payment Methods");
+        d.setHeaderText("What you accept and pay with. A method is never deleted — switch it off and it stops being offered.");
+        d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        javafx.scene.control.TableView<com.kaziflow.services.PaymentMethods.Method> tv = new javafx.scene.control.TableView<>();
+        tv.setPrefSize(660, 300);
+        javafx.scene.control.TableColumn<com.kaziflow.services.PaymentMethods.Method, String> name = new javafx.scene.control.TableColumn<>("NAME");
+        name.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().label())); name.setPrefWidth(170);
+        javafx.scene.control.TableColumn<com.kaziflow.services.PaymentMethods.Method, String> code = new javafx.scene.control.TableColumn<>("CODE");
+        code.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().code())); code.setPrefWidth(110);
+        javafx.scene.control.TableColumn<com.kaziflow.services.PaymentMethods.Method, String> kind = new javafx.scene.control.TableColumn<>("TYPE");
+        kind.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().kind().label)); kind.setPrefWidth(130);
+        javafx.scene.control.TableColumn<com.kaziflow.services.PaymentMethods.Method, String> used = new javafx.scene.control.TableColumn<>("USED FOR");
+        used.setCellValueFactory(c -> { var m = c.getValue(); java.util.List<String> u = new java.util.ArrayList<>();
+            if (m.forSales()) u.add("Sales"); if (m.forPurchases()) u.add("Purchases"); if (m.forExpenses()) u.add("Expenses");
+            return new javafx.beans.property.SimpleStringProperty(String.join(", ", u)); }); used.setPrefWidth(160);
+        javafx.scene.control.TableColumn<com.kaziflow.services.PaymentMethods.Method, String> status = new javafx.scene.control.TableColumn<>("STATUS");
+        status.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().active() ? "On" : "Off")); status.setPrefWidth(70);
+        tv.getColumns().addAll(java.util.List.of(name, code, kind, used, status));
+        Runnable reload = () -> { var sel = tv.getSelectionModel().getSelectedItem(); tv.getItems().setAll(com.kaziflow.services.PaymentMethods.all());
+            if (sel != null) tv.getItems().stream().filter(m -> m.code().equals(sel.code())).findFirst().ifPresent(m -> tv.getSelectionModel().select(m)); };
+        reload.run();
+        Button add = new Button("Add…"), edit = new Button("Edit…"), toggle = new Button("Switch on / off");
+        add.setOnAction(e -> { buildPaymentMethodEditor(null).showAndWait(); reload.run(); });
+        edit.setOnAction(e -> { var m = tv.getSelectionModel().getSelectedItem(); if (m != null) { buildPaymentMethodEditor(m).showAndWait(); reload.run(); } });
+        toggle.setOnAction(e -> {
+            var m = tv.getSelectionModel().getSelectedItem(); if (m == null) return;
+            try { com.kaziflow.services.PaymentMethods.setActive(m.code(), !m.active()); }
+            catch (IllegalArgumentException ex) { new Alert(Alert.AlertType.WARNING, ex.getMessage()).showAndWait(); }
+            reload.run();
+        });
+        HBox buttons = new HBox(8, add, edit, toggle);
+        VBox box = new VBox(10, tv, buttons);
+        d.getDialogPane().setContent(box);
+        return d;
+    }
+
+    /** Add (existing == null) or edit a payment method. Problems are shown and the dialog stays open. */
+    javafx.scene.control.Dialog<ButtonType> buildPaymentMethodEditor(com.kaziflow.services.PaymentMethods.Method existing) {
+        javafx.scene.control.Dialog<ButtonType> d = new javafx.scene.control.Dialog<>();
+        d.setTitle(existing == null ? "Add payment method" : "Edit payment method");
+        ButtonType save = new ButtonType("Save", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        d.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
+        javafx.scene.control.TextField codeF = new javafx.scene.control.TextField(existing == null ? "" : existing.code());
+        codeF.setPromptText("e.g. airtel_money"); codeF.setDisable(existing != null);
+        javafx.scene.control.TextField nameF = new javafx.scene.control.TextField(existing == null ? "" : existing.label());
+        nameF.setPromptText("e.g. Airtel Money");
+        ComboBox<com.kaziflow.services.PaymentMethods.Kind> kindC = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(com.kaziflow.services.PaymentMethods.Kind.values()));
+        kindC.setValue(existing == null ? com.kaziflow.services.PaymentMethods.Kind.OTHER : existing.kind()); kindC.setDisable(existing != null);
+        javafx.scene.control.TextField orderF = new javafx.scene.control.TextField(existing == null ? "" : String.valueOf(existing.sortOrder()));
+        orderF.setPromptText("position (smaller = earlier)"); orderF.setDisable(existing == null);
+        javafx.scene.control.CheckBox cs = new javafx.scene.control.CheckBox("Sales (the till)"), cp = new javafx.scene.control.CheckBox("Purchases"), ce = new javafx.scene.control.CheckBox("Expenses");
+        cs.setSelected(existing == null || existing.forSales()); cp.setSelected(existing != null && existing.forPurchases()); ce.setSelected(existing != null && existing.forExpenses());
+        if (existing != null && existing.system()) { cs.setDisable(true); cp.setDisable(true); ce.setDisable(true); }
+        javafx.scene.layout.GridPane g = new javafx.scene.layout.GridPane(); g.setHgap(10); g.setVgap(8); g.setPadding(new Insets(12));
+        g.addRow(0, new Label("Code"), codeF); g.addRow(1, new Label("Name"), nameF); g.addRow(2, new Label("Type"), kindC); g.addRow(3, new Label("Order"), orderF);
+        g.addRow(4, new Label("Used for"), new VBox(4, cs, cp, ce));
+        d.getDialogPane().setContent(g);
+        d.getDialogPane().lookupButton(save).addEventFilter(javafx.event.ActionEvent.ACTION, ev -> {
+            try {
+                if (existing == null) com.kaziflow.services.PaymentMethods.add(codeF.getText(), nameF.getText(), kindC.getValue(), cs.isSelected(), cp.isSelected(), ce.isSelected());
+                else com.kaziflow.services.PaymentMethods.update(existing.code(), nameF.getText(), orderF.getText().isBlank() ? existing.sortOrder() : Integer.parseInt(orderF.getText().trim()), cs.isSelected(), cp.isSelected(), ce.isSelected());
+            } catch (NumberFormatException ex) { new Alert(Alert.AlertType.WARNING, "The order must be a whole number.").showAndWait(); ev.consume(); }
+            catch (IllegalArgumentException ex) { new Alert(Alert.AlertType.WARNING, ex.getMessage()).showAndWait(); ev.consume(); }
+        });
+        return d;
     }
 
     /** Load or remove the optional demo company (DemoDataService). Nothing is ever loaded without this explicit choice. */

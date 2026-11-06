@@ -83,12 +83,10 @@ public class SalesHistoryView {
         search.setPrefWidth(300);
         search.textProperty().addListener((obs, o, v) -> filterData(v));
 
-        ComboBox<String> payFilter = new ComboBox<>();
-        payFilter.getItems().addAll("Payment Method", "Cash", "M-Pesa", "Card", "Bank");
-        payFilter.setValue("Payment Method"); payFilter.setPrefHeight(36);
+        ComboBox<String> payFilter = com.kaziflow.utils.PaymentMethodCombo.filter("Payment Method"); payFilter.setPrefHeight(36);
         payFilter.setOnAction(e -> {
             String val = payFilter.getValue();
-            if (val.equals("Payment Method")) loadData();
+            if (com.kaziflow.utils.PaymentMethodCombo.ALL.equals(val)) loadData();
             else data.setAll(saleDAO.findAll().stream()
                 .filter(s -> val.equalsIgnoreCase(s.getPaymentMethod())).toList());
         });
@@ -157,13 +155,14 @@ public class SalesHistoryView {
                 super.updateItem(m, empty);
                 if (empty || m == null) { setGraphic(null); return; }
                 String bg, fg;
-                switch (m.toLowerCase()) {
-                    case "mpesa" -> { bg = "#dcfce7"; fg = "#16a34a"; }
-                    case "card"  -> { bg = "#eff6ff"; fg = "#2563eb"; }
-                    case "bank"  -> { bg = "#ede9fe"; fg = "#7c3aed"; }
-                    default      -> { bg = "#f1f5f9"; fg = "#475569"; }
+                var pm = com.kaziflow.services.PaymentMethods.find(m);
+                switch (pm == null ? com.kaziflow.services.PaymentMethods.Kind.OTHER : pm.kind()) {
+                    case MOBILE_MONEY -> { bg = "#dcfce7"; fg = "#16a34a"; }
+                    case CARD         -> { bg = "#eff6ff"; fg = "#2563eb"; }
+                    case BANK         -> { bg = "#ede9fe"; fg = "#7c3aed"; }
+                    default           -> { bg = "#f1f5f9"; fg = "#475569"; }
                 }
-                Label badge = new Label(m.toUpperCase());
+                Label badge = new Label(com.kaziflow.services.PaymentMethods.label(m).toUpperCase());
                 badge.setStyle("-fx-background-color:"+bg+";-fx-text-fill:"+fg+";-fx-font-size:10px;-fx-font-weight:bold;-fx-background-radius:20;-fx-padding:3 10;");
                 setGraphic(badge); setText(null);
             }

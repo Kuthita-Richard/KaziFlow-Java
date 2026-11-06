@@ -158,7 +158,7 @@ The point-and-click views / reports engine built for custom modules (v11.29), ex
 
 | Release | Theme | Contents | Size |
 |---|---|---|---|
-| **R1** | **Trust** | §1 items 1–3 and 5–7 (honest eTIMS label, no fake chart data, real exports, numbering service, tender master data, truthful login copy) | S–M |
+| **R1** | **Trust — DONE (v11.33–v11.43)** | §1 items 1–3 and 5–7 (honest eTIMS label, no fake chart data, real exports, numbering service, tender master data, truthful login copy) | S–M |
 | **R2** | **See your business** | Analytics foundation (shared aggregation service, period / compare / branch controls, drill-down, empty states) + Overview + Sales analytics + Inventory analytics | L |
 | **R3** | **Money** | Finance tabs, receivables / payables ageing, VAT summary; start of the real ledger | L–XL |
 | **R4** | **Compliance** | Tax classes; real eTIMS integration (an **external dependency**: it needs KRA onboarding / certification, so start the paperwork early); expenses-without-invoice; remittance summaries | L, external |
