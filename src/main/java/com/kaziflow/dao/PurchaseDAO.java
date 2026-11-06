@@ -37,9 +37,9 @@ public class PurchaseDAO {
         """;
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
+            String purchNum = com.kaziflow.services.NumberSequence.next(conn, com.kaziflow.services.NumberSequence.DocType.PURCHASE);   // first statement: takes the write lock
+            purchase.setPurchaseNumber(purchNum);
             try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                String purchNum = generatePurchaseNumber(conn);
-                purchase.setPurchaseNumber(purchNum);
                 ps.setString(1, purchNum);
                 ps.setInt(2, purchase.getSupplierId());
                 ps.setDouble(3, purchase.getSubtotal());
@@ -165,16 +165,10 @@ public class PurchaseDAO {
         return 0;
     }
 
-    private String generatePurchaseNumber(Connection conn) throws SQLException {
-        ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM purchases");
-        int count = rs.next() ? rs.getInt(1) : 0;
-        return String.format("PO-%04d", count + 1);
-    }
-
-    /** Public, connection-less variant for preview/display in the UI before saving. */
+    /** For display in the form before saving: the number the next order will get (not reserved; it is assigned on save). */
     public String generatePurchaseNumber() {
         try (Connection conn = getConn()) {
-            return generatePurchaseNumber(conn);
+            return com.kaziflow.services.NumberSequence.peek(conn, com.kaziflow.services.NumberSequence.DocType.PURCHASE);
         } catch (SQLException e) {
             e.printStackTrace();
             return "PO-0000";

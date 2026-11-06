@@ -47,7 +47,9 @@
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
-            <version>3.44.1.0</version>
+            <!-- 3.43.x and 3.44.x do NOT implement Statement.getGeneratedKeys() (it throws SQLFeatureNotSupportedException), which
+                 SaleDAO, PurchaseDAO, QuotationDAO and ~20 other DAOs rely on to read back a new row id. 3.42.0.0 and 3.45+ do. -->
+            <version>3.46.1.0</version>
         </dependency>
 
         <!-- BCrypt password hashing -->

@@ -68,6 +68,10 @@ public class PeopleFiguresCheck {
         // seed: 4 active employees in 2 departments (+1 with none), attendance, leave
         for (int i = 1; i <= 4; i++)
             sql("INSERT INTO employees (employee_number, name, department_id, salary, status) VALUES ('E-" + i + "','Emp " + i + "'," + (i == 4 ? "NULL" : (i == 3 ? "2" : "1")) + ",1000,'active')");
+        // employees exist but nobody has applied for leave: the leave tab must be empty, not filled with example requests
+        String leaveEmptyText = onFx(() -> text(priv(new EmployeesView(), "buildLeaveRequests")));
+        int leaveRowsShown = onFx(() -> { List<javafx.scene.control.TableView> tv = new ArrayList<>(); findTables(priv(new EmployeesView(), "buildLeaveRequests"), tv); return tv.isEmpty() ? -1 : tv.get(0).getItems().size(); });
+        check("employees but no leave requests: the leave table is empty (it used to show invented John Doe / Jane Smith requests)", leaveRowsShown == 0 && !leaveEmptyText.contains("Family vacation") && !leaveEmptyText.contains("John Doe"));
         String today = LocalDate.now().toString();
         String[] st = {"present", "present", "late", "absent"};
         for (int i = 0; i < 4; i++)

@@ -127,21 +127,20 @@ public class CustomerDAO {
         return list;
     }
 
-    /** Seed demo customers if table is empty */
-    public void seedIfEmpty() {
-        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
-            ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM customers");
-            if (rs.next() && rs.getInt(1) == 0) {
-                s.execute("""
-                    INSERT INTO customers (name, phone, email, address) VALUES
-                    ('Kamau Njoroge', '+254712345001', 'kamau@gmail.com', 'Westlands, Nairobi'),
-                    ('Wanjiru Mwangi', '+254712345002', 'wanjiru@outlook.com', 'Kasarani, Nairobi'),
-                    ('Otieno Builders Ltd', '+254722345003', 'otieno@builders.co.ke', 'Embakasi, Nairobi'),
-                    ('Fatuma Hassan', '+254733345004', '', 'Mombasa Road'),
-                    ('John Kariuki', '+254744345005', 'jkariuki@yahoo.com', 'Thika Road')
-                """);
-            }
-        } catch (Exception e) { e.printStackTrace(); }
+    /** Customers with two or more completed sales. */
+    public int getRepeatBuyerCount() {
+        return scalarInt("SELECT COUNT(*) FROM (SELECT customer_id FROM sales WHERE customer_id IS NOT NULL AND status='completed' GROUP BY customer_id HAVING COUNT(*) >= 2)");
+    }
+
+    /** Completed sales with no customer attached. */
+    public int getWalkInSaleCount() {
+        return scalarInt("SELECT COUNT(*) FROM sales WHERE customer_id IS NULL AND status='completed'");
+    }
+
+    private int scalarInt(String sql) {
+        try (Connection conn = getConn(); Statement s = conn.createStatement(); ResultSet rs = s.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (SQLException e) { e.printStackTrace(); return 0; }
     }
 
     // ────────────────────────────────────────────────────────────────────

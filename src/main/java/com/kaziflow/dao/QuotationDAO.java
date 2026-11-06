@@ -62,13 +62,10 @@ public class QuotationDAO {
     public int createQuotation(String customerName, String phone, String email,
                                 String notes, int validDays, int createdBy) {
         try (Connection c = conn()) {
-            // Generate quote number
-            int count = 0;
-            try (Statement s = c.createStatement()) {
-                ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM quotations");
-                if (rs.next()) count = rs.getInt(1);
-            }
-            String quoteNum = String.format("QT-%04d", count + 1);
+            c.setAutoCommit(false);
+            try {
+            // Quote number and the quotation row in ONE transaction; the number is allocated first (takes the write lock)
+            String quoteNum = com.kaziflow.services.NumberSequence.next(c, com.kaziflow.services.NumberSequence.DocType.QUOTATION);
 
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO quotations (quote_number,customer_name,customer_phone," +
@@ -83,8 +80,11 @@ public class QuotationDAO {
                 ps.setInt(7, createdBy);
                 ps.executeUpdate();
                 ResultSet keys = ps.getGeneratedKeys();
-                return keys.next() ? keys.getInt(1) : -1;
+                int id = keys.next() ? keys.getInt(1) : -1;
+                c.commit();
+                return id;
             }
+            } catch (Exception ex) { c.rollback(); throw ex; }
         } catch (Exception e) { e.printStackTrace(); return -1; }
     }
 

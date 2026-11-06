@@ -819,7 +819,12 @@ public class SalesView {
                     showAlert("M-Pesa Not Configured", "Go to Settings → M-Pesa Integration to configure your Daraja API credentials.");
                     return;
                 }
-                String ref = "INV-" + orderCounter;
+                // the reference the customer sees on their phone should be the invoice number the receipt will carry (the next one;
+                // it is assigned when the sale is saved after payment), not "INV-<orders today>", which repeated every day
+                String ref;
+                try (java.sql.Connection nc = com.kaziflow.database.DatabaseManager.getInstance().getConnection()) {
+                    ref = com.kaziflow.services.NumberSequence.peek(nc, com.kaziflow.services.NumberSequence.DocType.SALE);
+                } catch (Exception ex) { ref = "INV-" + orderCounter; }
                 mpesa.stkPush(phone, (int) total, ref,
                     checkoutId -> javafx.application.Platform.runLater(() -> {
                         sale.setMpesaRef(checkoutId);
@@ -1075,15 +1080,14 @@ public class SalesView {
 
         // Stats row
         com.kaziflow.dao.CustomerDAO dao = new com.kaziflow.dao.CustomerDAO();
-        dao.seedIfEmpty();
         int totalCustomers = dao.getTotalCount();
 
         HBox statsRow = new HBox(16);
         statsRow.setPadding(new Insets(20, 24, 0, 24));
         statsRow.getChildren().addAll(
             cStatCard("Total Customers", String.valueOf(totalCustomers), "All registered"),
-            cStatCard("Repeat Buyers",   String.valueOf(Math.max(0, totalCustomers - 2)), "Purchased 2+ times"),
-            cStatCard("Walk-in Sales",   "—", "No customer linked")
+            cStatCard("Repeat Buyers",   String.valueOf(dao.getRepeatBuyerCount()), "Purchased 2+ times"),
+            cStatCard("Walk-in Sales",   String.valueOf(dao.getWalkInSaleCount()), "No customer linked")
         );
 
         // Table

@@ -75,14 +75,16 @@ class AsyncTaskRegressionTest {
     }
 
     @Test
-    @DisplayName("PurchaseDAO still has private generatePurchaseNumber(Connection) for internal use")
-    void purchaseDAORetainsPrivateConnectionOverload() {
-        boolean hasPrivate = Arrays.stream(PurchaseDAO.class.getDeclaredMethods())
-            .anyMatch(m -> m.getName().equals("generatePurchaseNumber")
-                       && m.getParameterCount() == 1
-                       && java.lang.reflect.Modifier.isPrivate(m.getModifiers()));
-        assertTrue(hasPrivate,
-            "PurchaseDAO must retain the private generatePurchaseNumber(Connection) " +
-            "overload for use inside save() transactions.");
+    @DisplayName("PurchaseDAO has no private COUNT-based generatePurchaseNumber(Connection); orders are numbered by NumberSequence")
+    void purchaseDAONumbersOrdersThroughTheSharedSequence() {
+        // v11.42: the private generatePurchaseNumber(Connection) was "SELECT COUNT(*)+1" — read before write, duplicate numbers on a LAN,
+        // SQLITE_BUSY_SNAPSHOT, and a collision after any delete. It was replaced by com.kaziflow.services.NumberSequence (atomic, gapless).
+        boolean hasLegacy = Arrays.stream(PurchaseDAO.class.getDeclaredMethods())
+            .anyMatch(m -> m.getName().equals("generatePurchaseNumber") && m.getParameterCount() == 1);
+        assertFalse(hasLegacy,
+            "PurchaseDAO must not get a private generatePurchaseNumber(Connection) back: use NumberSequence.next(conn, DocType.PURCHASE) inside save().");
+        com.kaziflow.services.NumberSequence.DocType t = com.kaziflow.services.NumberSequence.DocType.valueOf("PURCHASE");
+        assertEquals("purchases", t.table);
+        assertEquals("purchase_number", t.column);
     }
 }

@@ -23,11 +23,8 @@ public class SaleReturnDAO {
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
             try {
-                // Generate return number
-                ResultSet countRs = conn.createStatement()
-                    .executeQuery("SELECT COUNT(*) FROM sale_returns");
-                int count = countRs.next() ? countRs.getInt(1) : 0;
-                String returnNum = String.format("RET-%04d", count + 1);
+                // Return number: first statement of the transaction (takes the write lock; rolled back with the return)
+                String returnNum = com.kaziflow.services.NumberSequence.next(conn, com.kaziflow.services.NumberSequence.DocType.SALE_RETURN);
                 double refundAmount = qty * unitPrice;
 
                 // Insert return record

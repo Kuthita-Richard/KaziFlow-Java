@@ -29,9 +29,9 @@ public class DemoCompanyCheck {
         DatabaseManager.getInstance().initialize();
 
         // ── a new database is the customer's own, empty ──
-        String[] tables = {"suppliers", "employees", "products", "transactions", "expenses", "sales"};
+        String[] tables = {"suppliers", "employees", "products", "transactions", "expenses", "sales", "customers"};
         boolean empty = true; for (String t : tables) empty &= n("SELECT COUNT(*) FROM " + t) == 0;
-        check("new database: no suppliers, employees, products, transactions, expenses or sales", empty);
+        check("new database: no suppliers, employees, products, customers, transactions, expenses or sales", empty);
         check("new database: DemoDataService sees no demo data", !DemoDataService.isPresent() && DemoDataService.countPresent().total() == 0);
         launchAgain(); launchAgain();
         empty = true; for (String t : tables) empty &= n("SELECT COUNT(*) FROM " + t) == 0;
@@ -47,7 +47,7 @@ public class DemoCompanyCheck {
         sql("INSERT INTO expenses (description, category, amount, expense_date) VALUES ('My real rent','Rent',55000,date('now'))");
         sql("INSERT INTO transactions (reference, description, transaction_type, category, amount, transaction_date) VALUES ('MY-1','My real income','income','Sales Revenue',777,date('now'))");
         Counts added = DemoDataService.load();
-        check("load(): adds 5 suppliers, 6 employees, 15 products, 10 transactions, 8 expenses", added.suppliers() == 5 && added.employees() == 6 && added.products() == 15 && added.transactions() == 10 && added.expenses() == 8);
+        check("load(): adds 5 suppliers, 6 employees, 15 products, 5 customers, 10 transactions, 8 expenses", added.suppliers() == 5 && added.employees() == 6 && added.products() == 15 && added.customers() == 5 && added.transactions() == 10 && added.expenses() == 8 && added.total() == 49);
         check("load(): countPresent matches what was added", DemoDataService.countPresent().equals(added) && DemoDataService.isPresent());
         Counts again = DemoDataService.load();
         check("load() twice adds nothing (idempotent)", again.total() == 0 && n("SELECT COUNT(*) FROM expenses") == 9 && n("SELECT COUNT(*) FROM transactions") == 11 && n("SELECT COUNT(*) FROM products") == 15);
@@ -66,7 +66,7 @@ public class DemoCompanyCheck {
           + "SELECT (SELECT id FROM sales WHERE sale_number='REAL-S1'), id, name, 1, 780, 620, 780 FROM products WHERE sku='CEM-001'");
         RemoveResult r = DemoDataService.remove();
         check("remove(): deletes the demo rows nothing uses (14 products, 6 employees, 10 transactions, 8 expenses, 4 suppliers)",
-                r.removed().products() == 14 && r.removed().employees() == 6 && r.removed().transactions() == 10 && r.removed().expenses() == 8 && r.removed().suppliers() == 4);
+                r.removed().products() == 14 && r.removed().employees() == 6 && r.removed().transactions() == 10 && r.removed().expenses() == 8 && r.removed().suppliers() == 4 && r.removed().customers() == 5);
         check("remove(): the demo product that a real sale used is KEPT, with its supplier, and reported as such",
                 r.keptBecauseInUse().products() == 1 && r.keptBecauseInUse().suppliers() == 1 && n("SELECT COUNT(*) FROM products WHERE sku='CEM-001'") == 1);
         check("remove(): the real sale and its line are intact", n("SELECT COUNT(*) FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE s.sale_number='REAL-S1'") == 1);

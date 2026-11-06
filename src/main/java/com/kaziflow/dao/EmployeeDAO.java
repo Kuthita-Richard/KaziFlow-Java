@@ -45,9 +45,12 @@ public class EmployeeDAO {
     }
 
     public boolean save(Employee e) {
-        String empNum = generateEmployeeNumber();
         String sql = "INSERT INTO employees (employee_number, name, email, phone, department_id, position, employment_type, salary, hire_date, status) VALUES (?,?,?,?,?,?,?,?,?,?)";
-        try (Connection conn = getConn(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = getConn()) {
+            conn.setAutoCommit(false);
+            try {
+            String empNum = com.kaziflow.services.NumberSequence.next(conn, com.kaziflow.services.NumberSequence.DocType.EMPLOYEE);   // same transaction as the insert: no number is used by a failed save
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, empNum);
             ps.setString(2, e.getName());
             ps.setString(3, e.getEmail());
@@ -58,7 +61,11 @@ public class EmployeeDAO {
             ps.setDouble(8, e.getSalary());
             ps.setString(9, e.getHireDate() != null ? e.getHireDate().toString() : LocalDate.now().toString());
             ps.setString(10, "active");
-            return ps.executeUpdate() > 0;
+            boolean ok = ps.executeUpdate() > 0;
+            conn.commit();
+            return ok;
+            }
+            } catch (SQLException | RuntimeException ex) { conn.rollback(); throw ex; }
         } catch (SQLException ex) { ex.printStackTrace(); return false; }
     }
 
@@ -101,14 +108,6 @@ public class EmployeeDAO {
             while (rs.next()) list.add(new String[]{rs.getString("id"), rs.getString("name")});
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
-    }
-
-    private String generateEmployeeNumber() {
-        try (Connection conn = getConn(); Statement s = conn.createStatement()) {
-            ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM employees");
-            if (rs.next()) return String.format("EMP-%03d", rs.getInt(1) + 1);
-        } catch (SQLException e) { e.printStackTrace(); }
-        return "EMP-001";
     }
 
     private Employee mapRow(ResultSet rs) throws SQLException {

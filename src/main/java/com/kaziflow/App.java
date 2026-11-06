@@ -64,31 +64,11 @@ public class App extends Application {
         // 3. Pre-initialize AI service (loads API key from DB)
         com.kaziflow.services.AIService.getInstance();
 
-        // 3. Ensure Phase-2 optional tables exist (safe — all use CREATE IF NOT EXISTS)
-        new com.kaziflow.dao.DeniDAO().ensureTables();
-        new com.kaziflow.dao.QuotationDAO().ensureTables();
-        new com.kaziflow.dao.PurchaseReturnDAO().ensureTables();
-        new com.kaziflow.dao.PayrollDAO().ensureTables();
-        new com.kaziflow.dao.WorkshopDAO().ensureTables();
-        new com.kaziflow.dao.GymDAO().ensureTables();
-        new com.kaziflow.dao.LaundryDAO().ensureTables();
-        new com.kaziflow.dao.HotelDAO().ensureTables();
-        new com.kaziflow.dao.FuelStationDAO().ensureTables();
-        new com.kaziflow.dao.SchoolCanteenDAO().ensureTables();
-        new com.kaziflow.dao.AppointmentDAO().ensureTables();
-        new com.kaziflow.dao.PatientDAO().ensureTables();
-        new com.kaziflow.dao.RestaurantDAO().ensureTables();
-        new com.kaziflow.dao.SaccoDAO().ensureTables();
-        new com.kaziflow.dao.DeliveryDAO().ensureTables();
-        new com.kaziflow.dao.StockTakeDAO().ensureTables();
-        new com.kaziflow.dao.CustomerDAO().ensureLoyaltyColumn();
-        com.kaziflow.services.AuditLog.ensureHashColumns();
+        // 3. Optional-module tables and later-added columns (idempotent; see SchemaMigrations)
+        com.kaziflow.database.SchemaMigrations.runAll();
 
         // 4. Auto-mark expired batches on startup (background, non-blocking)
         new Thread(() -> new com.kaziflow.dao.BatchDAO().updateExpiredBatches()).start();
-
-        // 4. Seed demo customers if empty
-        new com.kaziflow.dao.CustomerDAO().seedIfEmpty();
 
         // 4. Initialize ModuleRegistry — loads industry profile + enabled modules
         ModuleRegistry.getInstance().init();

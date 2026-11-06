@@ -97,12 +97,7 @@ public class BranchDAO {
                 }
 
                 // Generate transfer number
-                int count = 0;
-                try (Statement s = conn.createStatement()) {
-                    ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM stock_transfers");
-                    if (rs.next()) count = rs.getInt(1);
-                }
-                String transferNum = String.format("TRF-%04d", count + 1);
+                String transferNum = com.kaziflow.services.NumberSequence.next(conn, com.kaziflow.services.NumberSequence.DocType.STOCK_TRANSFER);
 
                 try (PreparedStatement ps = conn.prepareStatement("""
                     INSERT INTO stock_transfers

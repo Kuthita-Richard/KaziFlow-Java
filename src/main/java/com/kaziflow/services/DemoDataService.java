@@ -8,10 +8,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * The optional "demo company": sample suppliers, employees, products, transactions and expenses for exploring the
+ * The optional "demo company": sample suppliers, employees, products, customers, transactions and expenses for exploring the
  * system. NOTHING here runs unless the owner asks for it (Settings → Demo Company); new databases start empty.
  *
- * <p>Why this exists: these rows used to be inserted by {@code DatabaseManager.seedDefaultData} into every real database,
+ * <p>Why this exists: these rows (customers by {@code CustomerDAO.seedIfEmpty}, the rest by {@code DatabaseManager.seedDefaultData}) used to be inserted into every real database,
  * so every report, VAT and finance figure included them — and because {@code expenses} and {@code transactions} have no
  * unique key, they were inserted AGAIN on every launch (8 + 10 rows each time).
  *
@@ -23,20 +23,29 @@ import java.sql.Statement;
 public final class DemoDataService {
     private DemoDataService() {}
 
-    public record Counts(int suppliers, int employees, int products, int transactions, int expenses) {
-        public int total() { return suppliers + employees + products + transactions + expenses; }
+    public record Counts(int suppliers, int employees, int products, int transactions, int expenses, int customers) {
+        public int total() { return suppliers + employees + products + transactions + expenses + customers; }
         public String describe() {
             return suppliers + " suppliers, " + employees + " employees, " + products + " products, "
-                 + transactions + " transactions, " + expenses + " expenses";
+                 + customers + " customers, " + transactions + " transactions, " + expenses + " expenses";
         }
     }
     public record RemoveResult(Counts removed, Counts keptBecauseInUse) {}
 
+    // customers: name,phone,email,address
     // Column order — suppliers: code,name,email,phone,address,category,payment_terms,status,outstanding_balance
     // employees: number,name,email,phone,department_id,position,type,salary,hire_date,status
     // products: sku,name,category_id,supplier_id(1-based index into SUPPLIERS),selling,cost,stock,min_stock,unit,status
     // transactions: reference,description,account_id,type,category,amount,payment_method,date offset,created_by
     // expenses: description,category,amount,payment_method,date offset,created_by
+    private static final Object[][] CUSTOMERS = {
+        {"Kamau Njoroge", "+254712345001", "kamau@gmail.com", "Westlands, Nairobi"},
+        {"Wanjiru Mwangi", "+254712345002", "wanjiru@outlook.com", "Kasarani, Nairobi"},
+        {"Otieno Builders Ltd", "+254722345003", "otieno@builders.co.ke", "Embakasi, Nairobi"},
+        {"Fatuma Hassan", "+254733345004", "", "Mombasa Road"},
+        {"John Kariuki", "+254744345005", "jkariuki@yahoo.com", "Thika Road"}
+    };
+
     private static final Object[][] SUPPLIERS = {
         {"SUP-001", "East Africa Cement Co.", "sales@eacement.co.ke", "+254711000001", "Industrial Area, Nairobi", "Cement", 30, "active", 450000},
         {"SUP-002", "Crown Paints Kenya", "trade@crownpaints.co.ke", "+254711000002", "Thika Road, Nairobi", "Paints & Finishes", 45, "active", 128000},
@@ -100,7 +109,7 @@ public final class DemoDataService {
     /** Rows of the demo company present in the database right now (by identity). */
     public static Counts countPresent() {
         try (Connection c = DatabaseManager.getInstance().getConnection()) { return countPresent(c); }
-        catch (SQLException e) { e.printStackTrace(); return new Counts(0, 0, 0, 0, 0); }
+        catch (SQLException e) { e.printStackTrace(); return new Counts(0, 0, 0, 0, 0, 0); }
     }
 
     public static boolean isPresent() { return countPresent().total() > 0; }
@@ -117,7 +126,7 @@ public final class DemoDataService {
                 return added;
             } catch (SQLException e) { c.rollback(); throw e; }
             finally { c.setAutoCommit(auto); }
-        } catch (SQLException e) { e.printStackTrace(); return new Counts(0, 0, 0, 0, 0); }
+        } catch (SQLException e) { e.printStackTrace(); return new Counts(0, 0, 0, 0, 0, 0); }
     }
 
     /** Deletes demo rows nothing real depends on; reports what was removed and what had to stay. */
@@ -127,7 +136,7 @@ public final class DemoDataService {
             if (r.removed().total() > 0) AuditLog.log("DEMO_DATA_REMOVED", "Removed demo data: " + r.removed().describe()
                     + (r.keptBecauseInUse().total() > 0 ? " (kept because in use: " + r.keptBecauseInUse().describe() + ")" : ""));
             return r;
-        } catch (SQLException e) { e.printStackTrace(); return new RemoveResult(new Counts(0, 0, 0, 0, 0), new Counts(0, 0, 0, 0, 0)); }
+        } catch (SQLException e) { e.printStackTrace(); return new RemoveResult(new Counts(0, 0, 0, 0, 0, 0), new Counts(0, 0, 0, 0, 0, 0)); }
     }
 
     // ── connection-level (testable) ──
@@ -138,11 +147,12 @@ public final class DemoDataService {
             count(c, "SELECT COUNT(*) FROM employees WHERE employee_number = ? AND name = ?", EMPLOYEES, 0, 1),
             count(c, "SELECT COUNT(*) FROM products WHERE sku = ? AND name = ?", PRODUCTS, 0, 1),
             count(c, "SELECT COUNT(*) FROM transactions WHERE reference = ? AND description = ?", TRANSACTIONS, 0, 1),
-            count(c, "SELECT COUNT(*) FROM expenses WHERE description = ? AND category = ? AND amount = ?", EXPENSES, 0, 1, 2));
+            count(c, "SELECT COUNT(*) FROM expenses WHERE description = ? AND category = ? AND amount = ?", EXPENSES, 0, 1, 2),
+            count(c, "SELECT COUNT(*) FROM customers WHERE name = ? AND phone = ?", CUSTOMERS, 0, 1));
     }
 
     static Counts load(Connection c) throws SQLException {
-        int s = 0, e = 0, p = 0, t = 0, x = 0;
+        int s = 0, e = 0, p = 0, t = 0, x = 0, cu = 0;
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO suppliers (code, name, email, phone, address, category, payment_terms, status, outstanding_balance) "
               + "SELECT ?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM suppliers WHERE code = ?)")) {
@@ -176,7 +186,11 @@ public final class DemoDataService {
               + "WHERE NOT EXISTS (SELECT 1 FROM expenses WHERE description = ? AND category = ? AND amount = ?)")) {
             for (Object[] r : EXPENSES) { bind(ps, r, 0, 1, 2, 3, 4, 0, 1, 2); x += ps.executeUpdate(); }
         }
-        return new Counts(s, e, p, t, x);
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO customers (name, phone, email, address) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM customers WHERE name = ? AND phone = ?)")) {
+            for (Object[] r : CUSTOMERS) { bind(ps, r, 0, 1, 2, 3, 0, 1); cu += ps.executeUpdate(); }
+        }
+        return new Counts(s, e, p, t, x, cu);
     }
 
     static RemoveResult remove(Connection c) throws SQLException {
@@ -186,7 +200,8 @@ public final class DemoDataService {
         int e = delete(c, "DELETE FROM employees WHERE employee_number = ? AND name = ?", EMPLOYEES, 0, 1);
         int t = delete(c, "DELETE FROM transactions WHERE reference = ? AND description = ?", TRANSACTIONS, 0, 1);
         int x = delete(c, "DELETE FROM expenses WHERE description = ? AND category = ? AND amount = ?", EXPENSES, 0, 1, 2);
-        return new RemoveResult(new Counts(s, e, p, t, x), countPresent(c));
+        int cu = delete(c, "DELETE FROM customers WHERE name = ? AND phone = ?", CUSTOMERS, 0, 1);
+        return new RemoveResult(new Counts(s, e, p, t, x, cu), countPresent(c));
     }
 
     // ── helpers ──

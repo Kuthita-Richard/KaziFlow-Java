@@ -43,7 +43,24 @@ public class SaleDAO {
         return null;
     }
 
+    /** Saves a completed sale. A failure rolls everything back (including the invoice number, so numbers have no gaps); a database that
+     *  stayed busy is retried as a whole transaction. Returns null if the sale could not be saved. */
     public Sale save(Sale sale) {
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try { return saveOnce(sale); }
+            catch (Exception ex) {
+                if (attempt < 3 && com.kaziflow.services.NumberSequence.isBusy(ex)) {
+                    try { Thread.sleep(150L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    continue;
+                }
+                ex.printStackTrace();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Sale saveOnce(Sale sale) throws Exception {
         String sql = """
             INSERT INTO sales (sale_number, customer_id, customer_name, subtotal, discount_amount,
             vat_amount, total_amount, amount_paid, change_amount, payment_method, mpesa_ref, status, served_by, delivery_charge)
@@ -51,9 +68,10 @@ public class SaleDAO {
         """;
         try (Connection conn = getConn()) {
             conn.setAutoCommit(false);
+            // FIRST statement of the transaction: takes the write lock, so the number is unique and no read snapshot can go stale
+            String saleNum = com.kaziflow.services.NumberSequence.next(conn, com.kaziflow.services.NumberSequence.DocType.SALE);
+            sale.setSaleNumber(saleNum);
             try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                String saleNum = generateSaleNumber(conn);
-                sale.setSaleNumber(saleNum);
                 ps.setString(1, saleNum);
                 ps.setObject(2, sale.getCustomerId());
                 ps.setString(3, sale.getCustomerName() != null ? sale.getCustomerName() : "Walk-in Customer");
@@ -91,10 +109,9 @@ public class SaleDAO {
                 return sale;
             } catch (Exception ex) {
                 conn.rollback();
-                ex.printStackTrace();
-                return null;
+                throw ex;
             }
-        } catch (SQLException e) { e.printStackTrace(); return null; }
+        }
     }
 
     private void saveSaleItem(int saleId, SaleItem item, Connection conn) throws SQLException {
@@ -194,12 +211,6 @@ public class SaleDAO {
             while (rs.next()) map.put(rs.getString("payment_method"), rs.getInt("cnt"));
         } catch (SQLException e) { e.printStackTrace(); }
         return map;
-    }
-
-    private String generateSaleNumber(Connection conn) throws SQLException {
-        ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM sales");
-        int count = rs.next() ? rs.getInt(1) : 0;
-        return String.format("INV-%04d", count + 1);
     }
 
     /** Returns revenue totals keyed by "YYYY-MM", last 12 months descending */

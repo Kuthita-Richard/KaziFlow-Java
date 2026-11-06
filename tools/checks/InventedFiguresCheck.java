@@ -36,6 +36,13 @@ public class InventedFiguresCheck {
         if (n instanceof Parent p) for (Node c : p.getChildrenUnmodifiable()) collect(c, out);
     }
     static String text(Node root) { List<String> l = new ArrayList<>(); collect(root, l); return String.join(" | ", l); }
+    /** The Customers tab as the app shows it: the shell from buildCustomersPane(), filled by loadCustomers() when the tab is selected. */
+    static String customersTab() throws Exception {
+        SalesView v = new SalesView();
+        javafx.scene.layout.VBox pane = (javafx.scene.layout.VBox) priv(v, "buildCustomersPane");
+        var m = SalesView.class.getDeclaredMethod("loadCustomers", javafx.scene.layout.VBox.class); m.setAccessible(true); m.invoke(v, pane);
+        return text(pane);
+    }
     static Node priv(Object view, String method) throws Exception {
         var m = view.getClass().getDeclaredMethod(method); m.setAccessible(true); return (Node) m.invoke(view);
     }
@@ -145,6 +152,19 @@ public class InventedFiguresCheck {
         VATConfig.getInstance().save(16.0, false);
         check("VAT card says Off when VAT is switched off", onFx(() -> text(priv(new FinanceView(), "buildVatBody"))).contains("Off"));
 
+        // customers tab: nothing is seeded by opening it, and the stats come from the data
+        sql("DELETE FROM sale_items"); sql("DELETE FROM sales"); sql("DELETE FROM customers");
+        String custEmpty = onFx(() -> customersTab());
+        check("customers tab on an empty database: no customers are created by opening it, and every card is 0", scalar("SELECT COUNT(*) FROM customers") == 0
+                && custEmpty.contains("Total Customers | 0") && custEmpty.contains("Repeat Buyers | 0") && custEmpty.contains("Walk-in Sales | 0"));
+        sql("INSERT INTO customers (name, phone) VALUES ('A','1'),('B','2'),('C','3'),('D','4'),('E','5')");
+        for (int i = 1; i <= 2; i++) sql("INSERT INTO sales (sale_number, customer_id, subtotal, total_amount, payment_method, status) VALUES ('CA-" + i + "',(SELECT id FROM customers WHERE name='A'),10,10,'cash','completed')");
+        sql("INSERT INTO sales (sale_number, customer_id, subtotal, total_amount, payment_method, status) VALUES ('CB-1',(SELECT id FROM customers WHERE name='B'),10,10,'cash','completed')");
+        sql("INSERT INTO sales (sale_number, customer_id, subtotal, total_amount, payment_method, status) VALUES ('CB-2',(SELECT id FROM customers WHERE name='B'),10,10,'cash','refunded')");
+        for (int i = 1; i <= 2; i++) sql("INSERT INTO sales (sale_number, subtotal, total_amount, payment_method, status) VALUES ('W-" + i + "',10,10,'cash','completed')");
+        String custData = onFx(() -> customersTab());
+        check("customers tab: 5 customers, repeat buyers = 1 (A has 2 completed sales; B's second was refunded; the old formula gave 5-2 = 3), walk-in sales = 2",
+                custData.contains("Total Customers | 5") && custData.contains("Repeat Buyers | 1") && custData.contains("Walk-in Sales | 2"));
         System.out.println(pass + " passed, " + fail + " failed");
         System.exit(fail == 0 ? 0 : 1);
     }

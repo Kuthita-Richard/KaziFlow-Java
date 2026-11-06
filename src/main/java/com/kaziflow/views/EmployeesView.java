@@ -480,18 +480,6 @@ public class EmployeesView {
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
-
-        // Seed demo data if empty
-        if (leaveData.isEmpty()) {
-            List<Employee> emps = employeeDAO.findAll();
-            if (!emps.isEmpty()) {
-                leaveData.addAll(
-                    new String[]{emps.size()>0?emps.get(0).getName():"John Doe", "Annual Leave", "2024-11-01","2024-11-05","5","Family vacation","pending"},
-                    new String[]{emps.size()>1?emps.get(1).getName():"Jane Smith","Sick Leave",   "2024-10-20","2024-10-22","3","Medical treatment","approved"},
-                    new String[]{emps.size()>2?emps.get(2).getName():"Mike Otieno","Emergency",   "2024-10-15","2024-10-16","2","Family emergency","approved"}
-                );
-            }
-        }
     }
 
     private void showApplyLeaveDialog() {

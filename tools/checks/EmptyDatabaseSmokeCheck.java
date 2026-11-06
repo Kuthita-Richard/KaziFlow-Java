@@ -16,6 +16,7 @@ public class EmptyDatabaseSmokeCheck {
     static int pass, fail, skipped;
     public static void main(String[] a) throws Exception {
         DatabaseManager.getInstance().initialize();
+        com.kaziflow.database.SchemaMigrations.runAll();     // as App.start() does
         ModuleRegistry.getInstance().init();
         User u = new User(); u.setId(1); u.setName("Admin"); SessionManager.getInstance().login(u);
         Platform.startup(() -> {});

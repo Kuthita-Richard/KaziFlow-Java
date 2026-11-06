@@ -55,7 +55,17 @@ class TrustGuardTest {
         new String[]{"October 2024", "a month typed in code (use DateRange.monthLabel)"},
         new String[]{"4 departments", "a department count nothing computed"},
         new String[]{"Annual 21d", "leave policies typed in code instead of read from data"},
-        new String[]{"↑ Current period", "an up arrow shown whatever the sign of the figure"});
+        new String[]{"↑ Current period", "an up arrow shown whatever the sign of the figure"},
+        // v11.42: no sample data in a customer's database, and document numbers come from NumberSequence, never COUNT(*)+1
+        new String[]{"Family vacation", "an invented leave request shown in the leave list"},
+        new String[]{"totalCustomers - 2", "'repeat buyers' computed as total customers minus 2"},
+        new String[]{"seedIfEmpty", "demo customers inserted into a real database (use DemoDataService, opt-in)"},
+        new String[]{"INV-%04d", "a COUNT-based invoice number (use NumberSequence)"},
+        new String[]{"PO-%04d", "a COUNT-based purchase number (use NumberSequence)"},
+        new String[]{"QT-%04d", "a COUNT-based quotation number (use NumberSequence)"},
+        new String[]{"RET-%04d", "a COUNT-based return number (use NumberSequence)"},
+        new String[]{"TRF-%04d", "a COUNT-based transfer number (use NumberSequence)"},
+        new String[]{"EMP-%03d", "a COUNT-based employee number (use NumberSequence)"});
 
     @Test
     @DisplayName("no source string says something the product cannot back up")

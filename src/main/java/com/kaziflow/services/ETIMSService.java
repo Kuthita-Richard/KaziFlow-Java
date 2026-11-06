@@ -49,15 +49,26 @@ public class ETIMSService {
      * @return the generated serial string, or "ETIMS-PENDING" on failure
      */
     public String generateSerial(int saleId, String saleNumber) {
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            try { return generateSerialOnce(saleId, saleNumber); }
+            catch (Exception e) {
+                if (attempt < 4 && NumberSequence.isBusy(e)) {          // another cashier holds the database: wait and redo the whole transaction
+                    try { Thread.sleep(200L * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+                    continue;
+                }
+                e.printStackTrace();
+                return "ETIMS-PENDING";
+            }
+        }
+        return "ETIMS-PENDING";
+    }
+
+    private String generateSerialOnce(int saleId, String saleNumber) throws Exception {
         try (Connection conn = DatabaseManager.getInstance().getConnection()) {
             conn.setAutoCommit(false);
             try {
-                // Get next sequence
-                int seq = 1;
-                try (Statement st = conn.createStatement()) {
-                    ResultSet rs = st.executeQuery("SELECT COALESCE(MAX(sequence),0)+1 FROM etims_serials");
-                    if (rs.next()) seq = rs.getInt(1);
-                }
+                // Next sequence from the shared allocator (first statement: takes the write lock; was MAX(sequence)+1, a read-then-write)
+                long seq = NumberSequence.nextNumber(conn, NumberSequence.DocType.ETIMS_LOCAL);
 
                 String year   = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy"));
                 String serial = String.format("%s-%s-%06d", LOCAL_PREFIX, year, seq);
@@ -67,7 +78,7 @@ public class ETIMSService {
                     ps.setString(1, serial);
                     ps.setInt(2, saleId);
                     ps.setString(3, saleNumber);
-                    ps.setInt(4, seq);
+                    ps.setLong(4, seq);
                     ps.setString(5, "local"); // "local" until KRA API confirms
                     ps.executeUpdate();
                 }
@@ -84,12 +95,8 @@ public class ETIMSService {
                 return serial;
             } catch (Exception ex) {
                 conn.rollback();
-                ex.printStackTrace();
-                return "ETIMS-PENDING";
+                throw ex;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "ETIMS-PENDING";
         }
     }
 
